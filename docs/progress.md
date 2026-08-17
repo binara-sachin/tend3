@@ -242,9 +242,17 @@ own bundled Chromium instead (installed temporarily via `npm install
   broke `supertest`'s real requests in backend tests when tried as a global
   `setupFiles` entry.
 
+Arrow-key navigation (↑↓ within a row list, ←→ between columns, spec §5.3)
+was initially left out of the Column/ColumnStack task despite being in both
+the plan and the spec's keyboard map — caught while writing this log entry,
+before calling the phase done, rather than by a test or external review.
+Implemented afterward: ↑↓ scoped to the nearest enclosing `<ul>` (so a
+heading's expanded children form their own self-contained list), ←→ via
+the nearest `[data-depth]` ancestor's sibling.
+
 ### Test counts
 
-199 tests, 31 files, all passing. `npm run typecheck` (both the backend's
+201 tests, 31 files, all passing. `npm run typecheck` (both the backend's
 and `web/`'s tsconfig) clean.
 
 ### Residual risk / known gaps carried into later phases
@@ -259,10 +267,6 @@ and `web/`'s tsconfig) clean.
   Phase 1's conservative fixture generator) — a heading containing a
   sub-project is allowed by the command layer but not exercised by any
   Phase 2 test.
-- Arrow-key navigation between columns and within a column's row list
-  (spec §5.3: ←→↑↓) is not implemented — only click-to-select, Enter, Space,
-  Cmd+N/Shift+N, and Cmd+Backspace are wired. Worth closing before calling
-  keyboard navigation complete.
 - Column widths default to 280px with no persistence-format migration
   story; fine for a single-user local app with no stored data yet, but
   worth a look if the `localStorage` shape ever needs to change.
