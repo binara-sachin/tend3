@@ -15,7 +15,7 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
   const { data: rows } = useColumn(parentId);
   const showCompleted = useUiStore((s) => s.showCompleted[columnKey(parentId)] ?? false);
   const select = useUiStore((s) => s.select);
-  const setSelection = useUiStore((s) => s.setSelection);
+  const setActiveSelection = useUiStore((s) => s.setActiveSelection);
   const runCommand = useRunCommand();
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [expandedHeadings, setExpandedHeadings] = useState<Set<string>>(new Set());
@@ -61,7 +61,7 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
               role="button"
               tabIndex={0}
               onClick={() => {
-                setSelection(columnKey(parentId), row.id);
+                setActiveSelection({ parentId: columnKey(parentId), nodeId: row.id, type: row.type });
                 if (row.type === "heading") {
                   toggleHeading(row.id);
                 } else {

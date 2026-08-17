@@ -54,10 +54,14 @@ describe("toggleShowCompleted", () => {
   });
 });
 
-describe("setSelection", () => {
-  it("records the selected node id for a parent", () => {
-    useUiStore.getState().setSelection("p1", "n1");
+describe("setActiveSelection", () => {
+  it("records the active selection with its parent and type", () => {
+    useUiStore.getState().setActiveSelection({ parentId: "p1", nodeId: "n1", type: "todo" });
 
-    expect(useUiStore.getState().selection.p1).toBe("n1");
+    expect(useUiStore.getState().activeSelection).toEqual({
+      parentId: "p1",
+      nodeId: "n1",
+      type: "todo",
+    });
   });
 });

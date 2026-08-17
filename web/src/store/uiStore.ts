@@ -6,15 +6,21 @@ export interface OpenPathEntry {
   type: "project" | "todo";
 }
 
+export interface ActiveSelection {
+  parentId: string;
+  nodeId: string;
+  type: "project" | "heading" | "todo";
+}
+
 export interface UiState {
   openPath: OpenPathEntry[];
   columnWidths: Record<number, number>;
   showCompleted: Record<string, boolean>;
-  selection: Record<string, string>;
+  activeSelection: ActiveSelection | null;
   select(depth: number, entry: OpenPathEntry): void;
   setColumnWidth(index: number, width: number): void;
   toggleShowCompleted(parentId: string): void;
-  setSelection(parentId: string, nodeId: string): void;
+  setActiveSelection(selection: ActiveSelection): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -23,7 +29,7 @@ export const useUiStore = create<UiState>()(
       openPath: [],
       columnWidths: {},
       showCompleted: {},
-      selection: {},
+      activeSelection: null,
 
       select(depth, entry) {
         set({ openPath: [...get().openPath.slice(0, depth), entry] });
@@ -38,8 +44,8 @@ export const useUiStore = create<UiState>()(
         set({ showCompleted: { ...current, [parentId]: !current[parentId] } });
       },
 
-      setSelection(parentId, nodeId) {
-        set({ selection: { ...get().selection, [parentId]: nodeId } });
+      setActiveSelection(selection) {
+        set({ activeSelection: selection });
       },
     }),
     { name: "tend-ui" },
