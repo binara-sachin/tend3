@@ -126,4 +126,20 @@ describe("Column", () => {
 
     expect(postCount).toBe(0);
   });
+
+  it("ArrowDown/ArrowUp moves focus between rows in the same list", async () => {
+    const secondRow = { ...TODO_ROW, id: "todo-2", title: "Buy bread" };
+    stubColumn("p1", [PROJECT_ROW, secondRow]);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    const first = await screen.findByText("Groceries");
+    first.focus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByText("Buy bread")).toHaveFocus();
+
+    await user.keyboard("{ArrowUp}");
+    expect(screen.getByText("Groceries")).toHaveFocus();
+  });
 });

@@ -70,7 +70,30 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
                 }
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") setRenamingId(row.id);
+                if (e.key === "Enter") {
+                  setRenamingId(row.id);
+                  return;
+                }
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const list = e.currentTarget.closest("ul");
+                  if (!list) return;
+                  const items = Array.from(
+                    list.querySelectorAll(':scope > li > [role="button"]'),
+                  ) as HTMLElement[];
+                  const index = items.indexOf(e.currentTarget);
+                  const nextIndex = e.key === "ArrowDown" ? index + 1 : index - 1;
+                  items[nextIndex]?.focus();
+                  return;
+                }
+                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                  e.preventDefault();
+                  const column = e.currentTarget.closest("[data-depth]");
+                  const targetColumn =
+                    e.key === "ArrowRight" ? column?.nextElementSibling : column?.previousElementSibling;
+                  const targetRow = targetColumn?.querySelector('[role="button"]') as HTMLElement | null;
+                  targetRow?.focus();
+                }
               }}
             >
               {row.title}

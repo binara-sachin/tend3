@@ -101,4 +101,25 @@ describe("ColumnStack", () => {
 
     expect(useUiStore.getState().columnWidths[1]).toBe(330); // default 280 + 50px delta (depth 1: sidebar owns depth 0)
   });
+
+  it("ArrowRight/ArrowLeft moves focus between adjacent columns", async () => {
+    mswServer.use(
+      http.get("/api/columns/p1", () => HttpResponse.json([row({ id: "p2", title: "Groceries" })])),
+      http.get("/api/columns/p2", () => HttpResponse.json([row({ id: "p3", title: "Frozen" })])),
+    );
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
+    useUiStore.getState().select(1, { id: "p2", type: "project" });
+    const user = userEvent.setup();
+
+    renderWithProviders(<ColumnStack />);
+    const groceries = await screen.findByText("Groceries");
+    const frozen = await screen.findByText("Frozen");
+    groceries.focus();
+
+    await user.keyboard("{ArrowRight}");
+    expect(frozen).toHaveFocus();
+
+    await user.keyboard("{ArrowLeft}");
+    expect(groceries).toHaveFocus();
+  });
 });
