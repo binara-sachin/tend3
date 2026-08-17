@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import express, { type Express } from "express";
 import type { CommandContext } from "../commands/Command.js";
 import { executeCommand } from "../commands/executeCommand.js";
@@ -7,10 +9,16 @@ import type { CommandLogRepository } from "../repo/CommandLogRepository.js";
 import type { NodeRepository } from "../repo/NodeRepository.js";
 import { buildCommand } from "./commandDispatch.js";
 
+export interface CreateAppOptions {
+  /** Directory holding the built frontend (vite build's outDir). Defaults to dist/web. */
+  staticDir?: string;
+}
+
 export function createApp(
   repo: NodeRepository,
   ctx: CommandContext,
   commandLog: CommandLogRepository,
+  options: CreateAppOptions = {},
 ): Express {
   const app = express();
   app.use(express.json());
@@ -38,6 +46,18 @@ export function createApp(
       res.status(400).json({ error: (err as Error).message });
     }
   });
+
+  const staticDir = options.staticDir ?? path.resolve(process.cwd(), "dist/web");
+  if (existsSync(staticDir)) {
+    app.use(express.static(staticDir));
+    app.use((req, res, next) => {
+      if (req.path.startsWith("/api")) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(staticDir, "index.html"));
+    });
+  }
 
   return app;
 }

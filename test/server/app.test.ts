@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
@@ -138,5 +141,48 @@ describe("POST /api/commands", () => {
     const res = await request(app).post("/api/commands").send({ type: "Nonsense", payload: {} });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("static frontend serving", () => {
+  function buildApp(staticDir: string): Express {
+    const created = createTestRepo();
+    const ctx: CommandContext = {
+      repo: created.repo,
+      now: fixedClock("2024-06-01T00:00:00.000Z"),
+      genId: generateId,
+    };
+    return createApp(created.repo, ctx, new SqliteCommandLogRepository(created.db), { staticDir });
+  }
+
+  it("serves the built index.html for a non-API GET route when a build exists", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "tend-dist-"));
+    writeFileSync(path.join(dir, "index.html"), "<html>built app</html>");
+    try {
+      const res = await request(buildApp(dir)).get("/some/client/route");
+
+      expect(res.status).toBe(200);
+      expect(res.text).toContain("built app");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns 404 for an unmatched /api route even when a build exists", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "tend-dist-"));
+    writeFileSync(path.join(dir, "index.html"), "<html>built app</html>");
+    try {
+      const res = await request(buildApp(dir)).get("/api/does-not-exist");
+
+      expect(res.status).toBe(404);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("falls through to a plain 404 when no build exists yet", async () => {
+    const res = await request(buildApp("/nonexistent/tend-dist")).get("/");
+
+    expect(res.status).toBe(404);
   });
 });
