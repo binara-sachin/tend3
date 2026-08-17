@@ -56,21 +56,27 @@ export function ColumnStack() {
   const columnWidths = useUiStore((s) => s.columnWidths);
   const setColumnWidth = useUiStore((s) => s.setColumnWidth);
 
+  // The sidebar renders depth 0 of the tree (spec §1) and calls select(0, ...)
+  // to start the open path, so the stack's first rendered column (children
+  // of that first selection) must itself select at depth 1 to EXTEND the
+  // path rather than overwrite it — hence index + 1 below, not index.
   const projectIds = openPath.filter((e) => e.type === "project").map((e) => e.id);
-  const parentIdsByDepth: Array<string | null> = [null, ...projectIds];
 
   return (
     <div style={{ display: "flex" }}>
-      {parentIdsByDepth.map((parentId, depth) => (
-        <ResizableColumn
-          key={parentId ?? "root"}
-          depth={depth}
-          width={columnWidths[depth] ?? DEFAULT_WIDTH}
-          onResize={(w) => setColumnWidth(depth, w)}
-        >
-          <Column parentId={parentId} depth={depth} />
-        </ResizableColumn>
-      ))}
+      {projectIds.map((parentId, index) => {
+        const depth = index + 1;
+        return (
+          <ResizableColumn
+            key={parentId}
+            depth={depth}
+            width={columnWidths[depth] ?? DEFAULT_WIDTH}
+            onResize={(w) => setColumnWidth(depth, w)}
+          >
+            <Column parentId={parentId} depth={depth} />
+          </ResizableColumn>
+        );
+      })}
     </div>
   );
 }

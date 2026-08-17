@@ -31,54 +31,64 @@ function row(overrides: Partial<Record<string, unknown>>) {
 }
 
 describe("ColumnStack", () => {
-  it("renders the root column plus one column per project entry in the open path", async () => {
+  it("renders nothing when the open path is empty (the sidebar covers depth 0)", () => {
+    renderWithProviders(<ColumnStack />);
+
+    expect(screen.queryByRole("separator")).not.toBeInTheDocument();
+  });
+
+  it("renders one column per project entry in the open path, starting at the first selection's children", async () => {
     mswServer.use(
-      http.get("/api/columns/root", () => HttpResponse.json([row({ id: "p1", title: "Areas" })])),
       http.get("/api/columns/p1", () => HttpResponse.json([row({ id: "p2", title: "Groceries" })])),
+      http.get("/api/columns/p2", () => HttpResponse.json([row({ id: "p3", title: "Frozen" })])),
     );
     useUiStore.getState().select(0, { id: "p1", type: "project" });
+    useUiStore.getState().select(1, { id: "p2", type: "project" });
 
     renderWithProviders(<ColumnStack />);
 
-    expect(await screen.findByText("Areas")).toBeInTheDocument();
     expect(await screen.findByText("Groceries")).toBeInTheDocument();
+    expect(await screen.findByText("Frozen")).toBeInTheDocument();
   });
 
   it("selecting a project extends the stack by one column", async () => {
     mswServer.use(
-      http.get("/api/columns/root", () => HttpResponse.json([row({ id: "p1", title: "Areas" })])),
       http.get("/api/columns/p1", () => HttpResponse.json([row({ id: "p2", title: "Groceries" })])),
+      http.get("/api/columns/p2", () => HttpResponse.json([row({ id: "p3", title: "Frozen" })])),
     );
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
     const user = userEvent.setup();
 
     renderWithProviders(<ColumnStack />);
-    await user.click(await screen.findByText("Areas"));
+    await user.click(await screen.findByText("Groceries"));
 
-    expect(await screen.findByText("Groceries")).toBeInTheDocument();
+    expect(await screen.findByText("Frozen")).toBeInTheDocument();
   });
 
   it("re-selecting at an earlier column truncates later columns", async () => {
     mswServer.use(
-      http.get("/api/columns/root", () =>
-        HttpResponse.json([row({ id: "p1", title: "Areas" }), row({ id: "p1b", title: "Work" })]),
+      http.get("/api/columns/p1", () =>
+        HttpResponse.json([row({ id: "p2", title: "Groceries" }), row({ id: "p2b", title: "Work" })]),
       ),
-      http.get("/api/columns/p1", () => HttpResponse.json([row({ id: "p2", title: "Groceries" })])),
-      http.get("/api/columns/p1b", () => HttpResponse.json([row({ id: "p3", title: "Reports" })])),
+      http.get("/api/columns/p2", () => HttpResponse.json([row({ id: "p3", title: "Frozen" })])),
+      http.get("/api/columns/p2b", () => HttpResponse.json([row({ id: "p4", title: "Reports" })])),
     );
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
     const user = userEvent.setup();
 
     renderWithProviders(<ColumnStack />);
-    await user.click(await screen.findByText("Areas"));
-    await screen.findByText("Groceries");
+    await user.click(await screen.findByText("Groceries"));
+    await screen.findByText("Frozen");
 
     await user.click(screen.getByText("Work"));
 
     expect(await screen.findByText("Reports")).toBeInTheDocument();
-    expect(screen.queryByText("Groceries")).not.toBeInTheDocument();
+    expect(screen.queryByText("Frozen")).not.toBeInTheDocument();
   });
 
   it("dragging a column's divider updates its stored width", async () => {
-    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([])));
+    mswServer.use(http.get("/api/columns/p1", () => HttpResponse.json([])));
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
 
     renderWithProviders(<ColumnStack />);
     const divider = await screen.findByRole("separator");
@@ -89,6 +99,6 @@ describe("ColumnStack", () => {
     window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 150, pointerId: 1 }));
     window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 150, pointerId: 1 }));
 
-    expect(useUiStore.getState().columnWidths[0]).toBe(330); // default 280 + 50px delta
+    expect(useUiStore.getState().columnWidths[1]).toBe(330); // default 280 + 50px delta (depth 1: sidebar owns depth 0)
   });
 });
