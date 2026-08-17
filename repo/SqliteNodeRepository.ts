@@ -281,4 +281,18 @@ export class SqliteNodeRepository implements NodeRepository {
       .all() as RawNodeRow[];
     return rows.map(toNodeRow);
   }
+
+  hasLiveDescendant(id: string): boolean {
+    const row = this.db
+      .prepare(
+        `WITH RECURSIVE subtree(id) AS (
+          SELECT id FROM nodes WHERE parent_id = ? AND deleted_at IS NULL
+          UNION ALL
+          SELECT n.id FROM nodes n JOIN subtree s ON n.parent_id = s.id WHERE n.deleted_at IS NULL
+        )
+        SELECT COUNT(*) AS count FROM subtree`,
+      )
+      .get(id) as { count: number };
+    return row.count > 0;
+  }
 }

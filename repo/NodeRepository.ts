@@ -50,4 +50,6 @@ export interface NodeRepository {
   recomputeOpenDescendantCounts(): Map<string, number>;
   /** Non-project rows with a nonzero open_descendant_count — always a bug, since only projects use it. */
   getNonProjectRowsWithNonzeroCount(): NodeRow[];
+  /** True if any live (deleted_at IS NULL) node exists anywhere beneath id, any type, any completion state. */
+  hasLiveDescendant(id: string): boolean;
 }

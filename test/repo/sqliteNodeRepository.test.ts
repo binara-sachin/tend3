@@ -371,6 +371,37 @@ describe("getNonProjectRowsWithNonzeroCount", () => {
   });
 });
 
+describe("hasLiveDescendant", () => {
+  it("is true when a live descendant exists at any depth, completed or not", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const heading = newNodeInput({ type: "heading", parentId: root.id });
+    repo.insert(heading);
+    const todo = newNodeInput({ type: "todo", parentId: heading.id });
+    repo.insert(todo);
+    repo.updateCompletedAt(todo.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
+
+    expect(repo.hasLiveDescendant(root.id)).toBe(true);
+  });
+
+  it("is false for an empty subtree", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+
+    expect(repo.hasLiveDescendant(root.id)).toBe(false);
+  });
+
+  it("is false when the only descendant is trashed", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const todo = newNodeInput({ type: "todo", parentId: root.id });
+    repo.insert(todo);
+    repo.updateDeletedAt(todo.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
+
+    expect(repo.hasLiveDescendant(root.id)).toBe(false);
+  });
+});
+
 describe("transaction", () => {
   it("rolls back all writes if the callback throws", () => {
     const node = newNodeInput({ type: "project" });
