@@ -14,16 +14,19 @@ export interface ColumnRow {
 }
 
 export function getColumn(repo: NodeRepository, parentId: string | null): ColumnRow[] {
-  return repo.getChildren(parentId).map((n) => ({
-    id: n.id,
-    type: n.type,
-    title: n.title,
-    isSystem: n.isSystem,
-    whenDate: n.whenDate,
-    deadline: n.deadline,
-    completedAt: n.completedAt,
-    isComplete:
-      n.type === "project" ? n.openDescendantCount === 0 && repo.hasLiveDescendant(n.id) : null,
-    openDescendantCount: n.openDescendantCount,
-  }));
+  return repo
+    .getChildren(parentId)
+    .filter((n) => n.deletedAt === null)
+    .map((n) => ({
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      isSystem: n.isSystem,
+      whenDate: n.whenDate,
+      deadline: n.deadline,
+      completedAt: n.completedAt,
+      isComplete:
+        n.type === "project" ? n.openDescendantCount === 0 && repo.hasLiveDescendant(n.id) : null,
+      openDescendantCount: n.openDescendantCount,
+    }));
 }

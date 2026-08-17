@@ -61,4 +61,18 @@ describe("getColumn", () => {
     expect(ids).toContain(root.id);
     expect(ids).toContain(INBOX_ID);
   });
+
+  it("excludes trashed children", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const live = newNodeInput({ type: "todo", parentId: root.id, sortKey: "a" });
+    repo.insert(live);
+    const trashed = newNodeInput({ type: "todo", parentId: root.id, sortKey: "b" });
+    repo.insert(trashed);
+    repo.updateDeletedAt(trashed.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
+
+    const ids = getColumn(repo, root.id).map((r) => r.id);
+
+    expect(ids).toEqual([live.id]);
+  });
 });

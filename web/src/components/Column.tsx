@@ -60,6 +60,7 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
             <div
               role="button"
               tabIndex={0}
+              style={{ minHeight: "1.4em" }}
               onClick={() => {
                 setActiveSelection({ parentId: columnKey(parentId), nodeId: row.id, type: row.type });
                 if (row.type === "heading") {
