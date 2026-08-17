@@ -135,3 +135,134 @@ as done) — none were found by manual inspection alone.
   replay: replaying a logged `RenameNode` payload verbatim would stamp a new
   `updated_at` rather than reproducing the original exactly. Deferred, not
   lost — worth revisiting when the sync work in spec 10 actually starts.
+
+## Phase 2 — Column Stack
+
+**Status: complete.** Full design rationale in
+`docs/superpowers/specs/2026-08-17-phase2-column-stack-design.md`; plan in
+`docs/superpowers/plans/2026-08-17-phase2-column-stack.md`.
+
+### What shipped
+
+- **`server/`**: Express app. `GET /api/columns/:parentId` (`root` sentinel
+  for the root-level project list), `GET /api/nodes/:id`, and a single
+  `POST /api/commands` dispatch endpoint covering the seven commands exposed
+  this phase (`CreateNode`, `RenameNode`, `SetNotes`, `SetWhen`,
+  `SetDeadline`, `SetCompleted`, `TrashNode`). `MoveNode` (Phase 3's job),
+  `RestoreNode`/`EmptyTrash` (Phase 4's Trash view), and `HardDeleteNode`
+  (an inverse only) are not reachable over HTTP. `TrashNode`'s `deletedAt`
+  and `SetCompleted`'s `completedAt` are always server time, never
+  client-supplied, per spec 7.5. Serves the built frontend from `dist/web`
+  with an SPA fallback once `npm run build` has run.
+- **`queries/getColumn.ts` + `getNode.ts`**: the two reads the UI needs,
+  plus `repo.hasLiveDescendant()` for spec 3.4's completion formula.
+- **`web/`**: Vite + React + TypeScript. TanStack Query for server state
+  (`useColumn`, `useNode`, `useRunCommand`); a Zustand store, persisted to
+  `localStorage`, for pure UI state (open path, column widths,
+  show-completed per column, active selection, focused column).
+  `Sidebar` (Inbox + root projects; Today/Logbook/Trash as inert
+  placeholders until Phase 4), `ColumnStack` (resizable columns via pointer
+  events, truncation on selection), `Column` (row rendering, inline rename,
+  per-column show-completed toggle, heading expand/collapse), `DetailPane`
+  (notes/when/deadline editing), and an app-level keyboard-shortcuts hook
+  (Space, Cmd+N, Cmd+Shift+N, Cmd+Backspace — Cmd+K and undo/redo are
+  Phases 4/5).
+
+### Bugs the tests — and one real browser run — actually caught
+
+1. **`getAncestorProjectIds` bug, third time**: while building
+   `useRunCommand`'s invalidation strategy, re-examined the same method
+   fixed twice in Phase 1 (see that section) to confirm the fix actually
+   covers the cache-invalidation use case too. No new defect this time —
+   confirms the fix holds, not a new bug.
+2. **`ColumnStack` duplicated the sidebar's root-project list.** Spec §1
+   says the sidebar renders depth 0 of the tree; `ColumnStack` was also
+   rendering a "root" column showing the same projects, and — more
+   seriously — passing the wrong `depth` to `Column`'s `select()` calls, so
+   selecting a project inside the *first* stack column overwrote the open
+   path instead of extending it (`select(0, …)` truncates to nothing, not
+   `select(1, …)`). Caught by `App.test.tsx`'s integration-level test, not
+   by `Column`'s or `ColumnStack`'s own isolated tests — neither exercised
+   the seam between them. Fixed: the stack starts at the first selection's
+   children; each column's depth is `index + 1`.
+3. **Cmd+N was a silent no-op in an empty column.** It read its target
+   parent from `activeSelection`, which is `null` until some row has been
+   clicked — exactly the state of a brand-new, empty project. Every
+   existing keyboard-shortcut test had already selected a row before
+   testing Cmd+N, so none caught it. Found by walking through the actual
+   golden path by hand before scripting it. Fixed by adding
+   `focusedColumnParentId` (set on column mount/click, independent of row
+   selection) as Cmd+N's fallback target.
+4. **`getColumn` never filtered trashed nodes.** `TrashNode` correctly sets
+   `deleted_at`, but the column kept showing the row regardless — no test
+   had ever inserted a trashed row into a column and checked it was
+   excluded. Fixed at the query layer, not `repo.getChildren` (which
+   `HardDeleteNode`'s orphan-check correctly needs to see *all* children,
+   trashed or not, to avoid orphaning a separately-trashed child).
+5. **Empty-titled rows were invisible to real browser interaction.** A
+   freshly created node has `title: ""`, which collapsed its row to zero
+   height — present in the DOM, un-clickable in practice. jsdom-based
+   component tests never noticed (no real layout engine). Caught only by
+   driving a real Chromium browser against the real dev server. Fixed with
+   a `minHeight` on row elements.
+6. **A missing test helper file was never committed.** `renderWithProviders.tsx`
+   had been imported by five component test files since the `Column`/
+   `ColumnStack` task, but `git add` never picked it up — those tests only
+   passed because the untracked file happened to still be on disk. Caught
+   by `git status` showing an unexpected untracked file three tasks later.
+   Verified the fix by testing a fresh clone from a clean checkout.
+
+Bugs 2, 3, 5, and 6 were found only by integration-level or real-browser
+verification — none of the unit-level test suites in isolation would have
+caught them. This is the concrete case for the plan's "before declaring
+done: start the real dev server and drive it with Playwright" step; skipping
+straight from green unit tests to "done" would have shipped four of six
+bugs in this phase.
+
+### Playwright note
+
+The bundled Playwright MCP tool requires a `chrome`-channel binary, which
+cannot be installed on Linux ARM64 (`sbx`'s host arch here). Verified the
+golden path with a standalone script using the `playwright` npm package's
+own bundled Chromium instead (installed temporarily via `npm install
+--no-save`, removed after). If this environment's arch changes or a
+`chrome` binary becomes available, the MCP tool should work directly.
+
+### Design decisions settled during the build
+
+- The sidebar owns depth 0 of the tree (root projects); the column stack
+  never re-renders that list — see bug #2 above.
+- `useRunCommand` and `DetailPane` take an explicit `parentId` rather than
+  inferring it from the mutation response, since `NodeDetail`/`ColumnRow`
+  don't carry `parentId` and the caller always already knows it.
+- Frontend tests mark jsdom per-file via a `// @vitest-environment jsdom`
+  docblock (`environmentMatchGlobs` did not reliably match `web/**` in this
+  Vitest version); MSW's setup is imported explicitly per test file rather
+  than globally, since it patches global `fetch`/`http` process-wide and
+  broke `supertest`'s real requests in backend tests when tried as a global
+  `setupFiles` entry.
+
+### Test counts
+
+199 tests, 31 files, all passing. `npm run typecheck` (both the backend's
+and `web/`'s tsconfig) clean.
+
+### Residual risk / known gaps carried into later phases
+
+- No automated E2E test suite exists for the golden path — Task 12's
+  verification was a one-off manual script, not a checked-in test. Spec §8
+  specifically calls for Playwright-driven, keyboard-sensor-based E2E
+  testing starting with drag-and-drop in Phase 3; worth establishing the
+  checked-in E2E harness then, covering Phase 2's flows retroactively.
+- Heading expand/collapse renders nested children via the same row-list
+  logic recursively, but only ever tested with todo children (matching
+  Phase 1's conservative fixture generator) — a heading containing a
+  sub-project is allowed by the command layer but not exercised by any
+  Phase 2 test.
+- Arrow-key navigation between columns and within a column's row list
+  (spec §5.3: ←→↑↓) is not implemented — only click-to-select, Enter, Space,
+  Cmd+N/Shift+N, and Cmd+Backspace are wired. Worth closing before calling
+  keyboard navigation complete.
+- Column widths default to 280px with no persistence-format migration
+  story; fine for a single-user local app with no stored data yet, but
+  worth a look if the `localStorage` shape ever needs to change.
