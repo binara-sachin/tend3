@@ -17,10 +17,13 @@ export interface UiState {
   columnWidths: Record<number, number>;
   showCompleted: Record<string, boolean>;
   activeSelection: ActiveSelection | null;
+  /** Which column currently has focus, independent of any row being selected within it — Cmd+N needs a target parent even in an empty column. */
+  focusedColumnParentId: string | null;
   select(depth: number, entry: OpenPathEntry): void;
   setColumnWidth(index: number, width: number): void;
   toggleShowCompleted(parentId: string): void;
   setActiveSelection(selection: ActiveSelection): void;
+  setFocusedColumnParentId(parentId: string): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -30,6 +33,7 @@ export const useUiStore = create<UiState>()(
       columnWidths: {},
       showCompleted: {},
       activeSelection: null,
+      focusedColumnParentId: null,
 
       select(depth, entry) {
         set({ openPath: [...get().openPath.slice(0, depth), entry] });
@@ -46,6 +50,10 @@ export const useUiStore = create<UiState>()(
 
       setActiveSelection(selection) {
         set({ activeSelection: selection });
+      },
+
+      setFocusedColumnParentId(parentId) {
+        set({ focusedColumnParentId: parentId });
       },
     }),
     { name: "tend-ui" },

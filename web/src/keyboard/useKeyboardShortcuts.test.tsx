@@ -97,6 +97,19 @@ describe("useKeyboardShortcuts", () => {
     });
   });
 
+  it("Cmd+N creates inside the focused column when nothing is selected yet (e.g. an empty column)", async () => {
+    const queryClient = new QueryClient();
+    useUiStore.getState().setFocusedColumnParentId("p1");
+    const bodyPromise = capturePost();
+    renderShortcuts(queryClient);
+
+    await userEvent.keyboard("{Meta>}n{/Meta}");
+
+    const body = (await bodyPromise) as { type: string; payload: { parentId: string } };
+    expect(body.type).toBe("CreateNode");
+    expect(body.payload.parentId).toBe("p1");
+  });
+
   it("Cmd+N creates a sibling below the current selection", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(["columns", "p1"], [{ id: "todo-1", sortKey: "a0" }]);

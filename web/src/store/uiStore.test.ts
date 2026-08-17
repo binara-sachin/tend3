@@ -65,3 +65,11 @@ describe("setActiveSelection", () => {
     });
   });
 });
+
+describe("setFocusedColumnParentId", () => {
+  it("records which column currently has focus, independent of any row selection", () => {
+    useUiStore.getState().setFocusedColumnParentId("p1");
+
+    expect(useUiStore.getState().focusedColumnParentId).toBe("p1");
+  });
+});

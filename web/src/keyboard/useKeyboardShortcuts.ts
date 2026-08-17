@@ -10,7 +10,7 @@ interface CachedRow {
   completedAt?: string | null;
 }
 
-/** Mounted once at the app root. Acts on the UI store's current activeSelection. */
+/** Mounted once at the app root. Acts on the UI store's current activeSelection / focusedColumnParentId. */
 export function useKeyboardShortcuts(): void {
   const queryClient = useQueryClient();
   const runCommand = useRunCommand();
@@ -20,12 +20,28 @@ export function useKeyboardShortcuts(): void {
       return queryClient.getQueryData<CachedRow[]>(["columns", parentId]) ?? [];
     }
 
+    function createTodo(targetParentId: string) {
+      const lastSortKey = siblingsOf(targetParentId).at(-1)?.sortKey ?? null;
+      runCommand.mutate({
+        type: "CreateNode",
+        payload: {
+          parentId: targetParentId,
+          type: "todo",
+          title: "",
+          notes: "",
+          sortKey: lastSortKey ? sortKeyAfter(lastSortKey) : firstSortKey(),
+          whenDate: null,
+          deadline: null,
+        },
+        parentId: targetParentId,
+      });
+    }
+
     function onKeyDown(e: KeyboardEvent) {
-      const selection = useUiStore.getState().activeSelection;
-      if (!selection) return;
+      const { activeSelection: selection, focusedColumnParentId } = useUiStore.getState();
 
       if (e.key === " " && !e.metaKey) {
-        if (selection.type !== "todo") return;
+        if (!selection || selection.type !== "todo") return;
         e.preventDefault();
         const current = siblingsOf(selection.parentId).find((r) => r.id === selection.nodeId);
         runCommand.mutate({
@@ -37,6 +53,7 @@ export function useKeyboardShortcuts(): void {
       }
 
       if (e.metaKey && e.key === "Backspace") {
+        if (!selection) return;
         e.preventDefault();
         runCommand.mutate({
           type: "TrashNode",
@@ -47,25 +64,20 @@ export function useKeyboardShortcuts(): void {
       }
 
       if (e.metaKey && e.key.toLowerCase() === "n") {
-        if (e.shiftKey && selection.type !== "project") return;
+        if (e.shiftKey) {
+          // Child inside the selected project — needs an actual project selected.
+          if (!selection || selection.type !== "project") return;
+          e.preventDefault();
+          createTodo(selection.nodeId);
+          return;
+        }
+
+        // Sibling below the current selection, or — with nothing selected yet
+        // (e.g. a freshly opened, empty column) — inside the focused column.
+        const targetParentId = selection ? selection.parentId : focusedColumnParentId;
+        if (!targetParentId) return;
         e.preventDefault();
-
-        const targetParentId = e.shiftKey ? selection.nodeId : selection.parentId;
-        const lastSortKey = siblingsOf(targetParentId).at(-1)?.sortKey ?? null;
-
-        runCommand.mutate({
-          type: "CreateNode",
-          payload: {
-            parentId: targetParentId,
-            type: "todo",
-            title: "",
-            notes: "",
-            sortKey: lastSortKey ? sortKeyAfter(lastSortKey) : firstSortKey(),
-            whenDate: null,
-            deadline: null,
-          },
-          parentId: targetParentId,
-        });
+        createTodo(targetParentId);
       }
     }
 

@@ -44,6 +44,14 @@ const TODO_ROW = {
 };
 
 describe("Column", () => {
+  it("marks itself as the focused column on mount, even before any row is selected", async () => {
+    stubColumn("p1", []);
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+
+    await waitFor(() => expect(useUiStore.getState().focusedColumnParentId).toBe("p1"));
+  });
+
   it("renders each row's title", async () => {
     stubColumn("p1", [PROJECT_ROW, TODO_ROW]);
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useColumn, useRunCommand } from "../queries/hooks.js";
 import { useUiStore } from "../store/uiStore.js";
 
@@ -93,9 +93,14 @@ export function Column({ parentId, depth }: ColumnProps) {
   const key = columnKey(parentId);
   const showCompleted = useUiStore((s) => s.showCompleted[key] ?? false);
   const toggleShowCompleted = useUiStore((s) => s.toggleShowCompleted);
+  const setFocusedColumnParentId = useUiStore((s) => s.setFocusedColumnParentId);
+
+  useEffect(() => {
+    setFocusedColumnParentId(key);
+  }, [key, setFocusedColumnParentId]);
 
   return (
-    <div>
+    <div onClick={() => setFocusedColumnParentId(key)}>
       <button type="button" aria-pressed={showCompleted} onClick={() => toggleShowCompleted(key)}>
         Show completed
       </button>
