@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+import { firstSortKey, sortKeyAfter, sortKeyBetween } from "../../lib/sortKey.js";
+
+describe("firstSortKey", () => {
+  it("returns a non-empty string", () => {
+    expect(firstSortKey().length).toBeGreaterThan(0);
+  });
+});
+
+describe("sortKeyAfter", () => {
+  it("returns a key that sorts after the given key", () => {
+    const first = firstSortKey();
+    const second = sortKeyAfter(first);
+
+    expect(second > first).toBe(true);
+  });
+
+  it("returns a key that continues to sort after repeated appends", () => {
+    let key = firstSortKey();
+    for (let i = 0; i < 5; i++) {
+      const next = sortKeyAfter(key);
+      expect(next > key).toBe(true);
+      key = next;
+    }
+  });
+});
+
+describe("sortKeyBetween", () => {
+  it("returns a key that sorts strictly between two existing keys", () => {
+    const a = firstSortKey();
+    const b = sortKeyAfter(a);
+
+    const middle = sortKeyBetween(a, b);
+
+    expect(middle > a).toBe(true);
+    expect(middle < b).toBe(true);
+  });
+});
