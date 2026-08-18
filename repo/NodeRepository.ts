@@ -53,6 +53,8 @@ export interface NodeRepository {
   getNonProjectRowsWithNonzeroCount(): NodeRow[];
   /** True if any live (deleted_at IS NULL) node exists anywhere beneath id, any type, any completion state. */
   hasLiveDescendant(id: string): boolean;
+  /** Max completed_at among id's live, completed todo descendants at any depth, or null if none. */
+  getLatestCompletedAtInSubtree(id: string): string | null;
   /** FTS5 prefix-match over title/notes, indexing everything (trashed included) — filtering is the query layer's job. */
   searchCandidates(query: string): NodeRow[];
 

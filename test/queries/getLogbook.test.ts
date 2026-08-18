@@ -26,7 +26,7 @@ describe("getLogbook", () => {
     ]);
   });
 
-  it("groups a derived-complete project under its updated_at day", () => {
+  it("groups a derived-complete project under its latest completion day, unaffected by a later rename", () => {
     const project = newNodeInput({ type: "project" });
     repo.insert(project);
     const todo = newNodeInput({ type: "todo", parentId: project.id });
@@ -34,6 +34,23 @@ describe("getLogbook", () => {
     repo.adjustOpenDescendantCount([project.id], 1); // CreateNode bookkeeping for the open todo
     repo.updateCompletedAt(todo.id, "2024-06-15T00:00:00.000Z", "2024-06-15T00:00:00.000Z");
     repo.adjustOpenDescendantCount([project.id], -1); // SetCompleted bookkeeping
+    repo.updateTitle(project.id, project.title, "2024-06-16T00:00:00.000Z");
+
+    const groups = getLogbook(repo);
+
+    // The rename bumped updated_at to 06-16, but the project's Logbook day
+    // stays pinned to when its todo actually completed — a rename must
+    // never move a project's entry.
+    const projectGroup = groups.find((g) => g.day === "2024-06-15");
+    expect(projectGroup?.rows.map((r) => r.id)).toContain(project.id);
+    expect(groups.find((g) => g.day === "2024-06-16")).toBeUndefined();
+  });
+
+  it("falls back to updated_at for a derived-complete project with no completed todo descendant", () => {
+    const project = newNodeInput({ type: "project" });
+    repo.insert(project);
+    const heading = newNodeInput({ type: "heading", parentId: project.id });
+    repo.insert(heading);
     repo.updateTitle(project.id, project.title, "2024-06-16T00:00:00.000Z");
 
     const groups = getLogbook(repo);

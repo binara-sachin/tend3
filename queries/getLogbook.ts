@@ -22,7 +22,10 @@ export function getLogbook(repo: NodeRepository): LogbookGroup[] {
     .getCandidateCompleteProjects()
     .filter((n) => repo.hasLiveDescendant(n.id))
     .filter((n) => !hasTrashedAncestor(repo, n.id))
-    .map((n) => ({ day: calendarDay(n.updatedAt), node: n }));
+    .map((n) => ({
+      day: calendarDay(repo.getLatestCompletedAtInSubtree(n.id) ?? n.updatedAt),
+      node: n,
+    }));
 
   const byDay = new Map<string, NodeRow[]>();
   for (const { day, node } of [...completedTodos, ...completeProjects]) {

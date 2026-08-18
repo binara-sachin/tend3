@@ -302,6 +302,23 @@ export class SqliteNodeRepository implements NodeRepository {
     return row.count > 0;
   }
 
+  getLatestCompletedAtInSubtree(id: string): string | null {
+    const row = this.db
+      .prepare(
+        `WITH RECURSIVE subtree(id, type, completed_at) AS (
+          SELECT id, type, completed_at FROM nodes
+          WHERE parent_id = ? AND deleted_at IS NULL
+          UNION ALL
+          SELECT n.id, n.type, n.completed_at FROM nodes n
+          JOIN subtree s ON n.parent_id = s.id
+          WHERE n.deleted_at IS NULL
+        )
+        SELECT MAX(completed_at) AS latest FROM subtree WHERE type = 'todo' AND completed_at IS NOT NULL`,
+      )
+      .get(id) as { latest: string | null };
+    return row.latest;
+  }
+
   searchCandidates(query: string): NodeRow[] {
     // Strip FTS5 query-syntax characters (quotes, punctuation, etc.) so
     // arbitrary user input can never produce a malformed MATCH expression —

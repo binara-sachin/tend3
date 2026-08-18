@@ -416,6 +416,48 @@ describe("hasLiveDescendant", () => {
   });
 });
 
+describe("getLatestCompletedAtInSubtree", () => {
+  it("returns the max completed_at among live todo descendants, any depth", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const heading = newNodeInput({ type: "heading", parentId: root.id, sortKey: "a" });
+    repo.insert(heading);
+    const earlier = newNodeInput({ type: "todo", parentId: heading.id, sortKey: "a" });
+    repo.insert(earlier);
+    repo.updateCompletedAt(earlier.id, "2024-06-01T00:00:00.000Z", "2024-06-01T00:00:00.000Z");
+    const later = newNodeInput({ type: "todo", parentId: root.id, sortKey: "b" });
+    repo.insert(later);
+    repo.updateCompletedAt(later.id, "2024-06-15T00:00:00.000Z", "2024-06-15T00:00:00.000Z");
+
+    expect(repo.getLatestCompletedAtInSubtree(root.id)).toBe("2024-06-15T00:00:00.000Z");
+  });
+
+  it("ignores incomplete todos and trashed branches", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const openTodo = newNodeInput({ type: "todo", parentId: root.id, sortKey: "a" });
+    repo.insert(openTodo);
+
+    const trashedHeading = newNodeInput({ type: "heading", parentId: root.id, sortKey: "b" });
+    repo.insert(trashedHeading);
+    repo.updateDeletedAt(trashedHeading.id, "2024-06-01T00:00:00.000Z", "2024-06-01T00:00:00.000Z");
+    const hiddenTodo = newNodeInput({ type: "todo", parentId: trashedHeading.id, sortKey: "a" });
+    repo.insert(hiddenTodo);
+    repo.updateCompletedAt(hiddenTodo.id, "2024-06-20T00:00:00.000Z", "2024-06-20T00:00:00.000Z");
+
+    expect(repo.getLatestCompletedAtInSubtree(root.id)).toBeNull();
+  });
+
+  it("returns null when there are no completed todo descendants at all", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const heading = newNodeInput({ type: "heading", parentId: root.id });
+    repo.insert(heading);
+
+    expect(repo.getLatestCompletedAtInSubtree(root.id)).toBeNull();
+  });
+});
+
 describe("transaction", () => {
   it("rolls back all writes if the callback throws", () => {
     const node = newNodeInput({ type: "project" });
