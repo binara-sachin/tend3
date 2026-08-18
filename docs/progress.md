@@ -391,3 +391,153 @@ removed from view). All three passed.
   `CreateNode`/`MoveNode`" trigger are unexercised by the real-browser
   pass (no test dragged the same item repeatedly to the same position
   enough times to trigger it) — covered only at the unit/command level.
+
+## Phase 4 — Smart Lists and Search
+
+**Status: complete.** Full design rationale in
+`docs/superpowers/specs/2026-08-18-phase4-smart-lists-search-design.md`;
+plan in `docs/superpowers/plans/2026-08-18-phase4-smart-lists-search.md`.
+
+### What shipped
+
+- **FTS5** (`db/migrations/0004_fts5.sql`): a `nodes_fts` virtual table
+  over `title`/`notes`, kept in sync by `AFTER INSERT/UPDATE/DELETE`
+  triggers — schema, not application code, so no command had to change.
+  `repo.searchCandidates()` runs a sanitized prefix-match `MATCH` query
+  and deliberately still returns trashed/completed rows; filtering those
+  out is the query layer's job (spec 5.4).
+- **`commands/PurgeNode.ts`**: per-item permanent delete for Trash,
+  distinct from the existing global `EmptyTrash`. Requires the target to
+  actually be a trash root (reuses `repo.getTrashRoots()` as the
+  authoritative check, not just the node's own `deletedAt`) so a
+  separately-trashed descendant of an already-trashed ancestor is
+  rejected too. Irreversible, same pattern as `EmptyTrash` — excluded by
+  name from the invertibility property test.
+- **`queries/getToday.ts`, `getLogbook.ts`, `getTrash.ts`,
+  `getSearchResults.ts`**: Today groups live, due/overdue todos by their
+  nearest enclosing project (resolved through headings via
+  `getAncestorProjectIds`), ranked overdue-first then by deadline, then
+  `when_date`, then `sort_key` — both within a group and across groups.
+  Logbook groups completed todos and derived-complete projects by
+  calendar day, most recent first. Trash is a thin wrapper over the
+  existing `getTrashRoots()`. Search filters `searchCandidates()` down to
+  live nodes with no trashed ancestor and attaches each result's ancestor
+  path (nearest-first) so the client can open the full column path in one
+  round-trip. A shared `hasTrashedAncestor()` helper
+  (`queries/ancestryFilters.ts`) backs the ancestry-safety check in all
+  three of Today/Logbook/Search.
+- **Server**: `GET /api/today` (derives "today" from the server clock,
+  never the client), `/api/logbook`, `/api/trash`, `/api/search?q=`
+  (empty/missing `q` returns `[]`, not an error). `commandDispatch.ts`
+  gains `RestoreNode`, `EmptyTrash`, `PurgeNode` — `HardDeleteNode`
+  remains the only command still deliberately unreachable over HTTP
+  (inverse-only). `EmptyTrash` has no single subject node, so
+  `DispatchedCommand.nodeId` became `string | null`.
+- **Frontend**: `TodayView`, `LogbookView`, `TrashView` replace the inert
+  Today/Logbook/Trash sidebar placeholders from Phase 2 — a new
+  `uiStore.activeSmartList` field (cleared by `select()`) switches
+  `App.tsx` between them and the normal column stack. `TrashView` wires
+  Restore, per-item Permanently-delete, and a page-level Empty Trash,
+  the latter two confirmed via `window.confirm()` before firing since
+  they're irreversible. `⌘K` (added to the existing global keydown
+  listener in `useKeyboardShortcuts.ts`) opens `SearchPalette`, a
+  debounced (200ms) search-as-you-type modal with arrow-key selection;
+  Enter opens the chosen result's column path and closes; Escape closes
+  without changing `openPath`.
+
+### Bugs and gaps the tests actually caught
+
+1. **FTS5 crashes on query-syntax characters.** An apostrophe alone
+   (e.g. searching `don't`) threw `fts5: syntax error near "'"` rather
+   than just matching nothing — any FTS5 special character in raw user
+   input could produce a malformed `MATCH` expression. Caught by a
+   dedicated test written *before* the fix existed (confirmed it failed
+   for the right reason), not found by inspection. Fixed by stripping
+   non-alphanumeric characters from each search term before appending
+   the `*` prefix wildcard.
+2. **Test-authoring mistake, caught before committing, not a production
+   bug**: the first pass at `web/src/App.test.tsx` for the Today/column-
+   stack wiring test used `Write` to replace the whole file instead of
+   adding to it, silently deleting two passing Phase 2 tests (root-
+   project click, detail-pane-on-todo-selection). Caught by reading
+   `git diff` before staging, not by any test failure — the suite still
+   reported green with the file quietly worse. Restored both tests
+   alongside the two new ones before committing.
+3. **Real-browser script timing, not an app bug**: the first full
+   real-browser run showed one false failure — asserting the searched-
+   for todo's title was visible immediately after `⌘K` → Enter, with no
+   wait for the newly-opened column's data to arrive. Re-running the
+   same check with an explicit `waitFor` on the title text passed
+   reliably; confirmed by rerunning the exact same script twice against
+   a freshly reseeded server with no other change. All 12 checks in the
+   final script passed: Today's project grouping, Logbook's day
+   grouping, Trash's Restore and Permanently-delete, and `⌘K` finding a
+   notes-only match and opening its full column path (including the
+   detail pane showing the matched notes text).
+
+### Design decisions settled during the build
+
+- Today's grouping (spec's `ORDER BY`/`GROUP BY` combination read two
+  ways — flat list with project as a tie-breaker, or sectioned by
+  project) was resolved with the user before implementation: sectioned
+  by project, matching Logbook's explicit day-sectioning and how
+  Things3/OmniFocus-style Today views behave. Recorded as a Global
+  Constraint in the plan, not re-litigated during implementation.
+- **Disclosed approximation, not a bug**: Logbook groups derived-complete
+  projects by `updated_at`'s calendar day — the closest available
+  signal, since nothing in the schema stamps "when a project's derived-
+  complete status actually flipped." Flagged in the design doc and the
+  plan before implementation; still true after shipping.
+- A search result under a heading can't be fully represented in
+  `openPath` (`OpenPathEntry` only ever holds `project`/`todo` entries —
+  headings are per-column expansion state, not global). Search still
+  opens the enclosing project chain for such a result; the heading
+  itself just isn't auto-expanded. Disclosed limitation, not silently
+  dropped — fixing it would require making heading-expansion global
+  state, out of scope for this phase.
+- `PurgeNode`'s precondition is "is a trash root" (via
+  `getTrashRoots()`), not merely "has `deletedAt` set" — a node whose
+  ancestor is already trashed can independently carry its own
+  `deletedAt` too (from being trashed separately before its ancestor
+  was), but spec 3.6 treats it as folded into its ancestor's purge, not
+  an independent target.
+
+### Real-browser verification
+
+Same standalone-script approach as Phases 2–3 (the bundled Playwright
+MCP tool needs a `chrome`-channel binary unavailable on this host's
+Linux ARM64; used the `playwright` npm package's own bundled Chromium,
+installed temporarily via `npm install --no-save`, removed after).
+Seeded a project with a due-today todo, a completed todo, two trashed
+todos, and a notes-only-matching todo via direct API calls, then drove
+the real dev server + Vite build: Today showed the due-today todo under
+its project's header; Logbook showed the completed todo under today's
+date; Trash showed both trashed todos, and Restore/Permanently-delete
+each removed their target from the view; `⌘K` found the notes-only match
+and opened its full column path, including the detail pane with the
+matched notes text visible. 12/12 checks passed on the final run.
+
+### Test counts
+
+295 tests, 44 files, all passing. `npm run typecheck` (both tsconfigs)
+clean.
+
+### Residual risk / known gaps carried into later phases (or not at all)
+
+- No checked-in automated E2E suite still — same gap noted at the end of
+  Phases 2 and 3, now also covering smart lists and search. Every
+  real-browser pass across all three phases has been a manual,
+  throwaway script. This is the third phase in a row to carry this note
+  forward; worth actually building the checked-in harness before Phase 5
+  (undo/redo) adds yet more surface area.
+- The heading-in-search-path gap above (search can't deep-link into an
+  expanded heading) is unlikely to matter until undo/redo (Phase 5) or a
+  future phase makes `openPath`/expansion state richer — worth
+  re-checking then rather than assuming it stays cosmetic.
+- Logbook's `updated_at`-day approximation for derived-complete projects
+  (see above) will silently misattribute a project to the wrong day if
+  it's edited (renamed, notes changed) on a later day than it actually
+  completed — `updated_at` moves for reasons unrelated to completion.
+  Not observed as a problem yet, since Phase 4's own tests and
+  real-browser pass never edited a project after completing it, but a
+  real risk once the app sees actual multi-day usage.
