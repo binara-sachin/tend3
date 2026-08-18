@@ -3,8 +3,8 @@ export interface DueBadge {
   tone: "accent" | "neutral";
 }
 
-const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = [
+export const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const MONTH_NAMES = [
   "Jan",
   "Feb",
   "Mar",
@@ -19,13 +19,13 @@ const MONTH_NAMES = [
   "Dec",
 ];
 
-function toUtcDate(dateStr: string): Date {
+export function toUtcDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(y!, m! - 1, d!));
 }
 
 /** Calendar days from `a` to `b` (positive when `b` is later). */
-function daysBetween(a: string, b: string): number {
+export function daysBetween(a: string, b: string): number {
   return Math.round((toUtcDate(b).getTime() - toUtcDate(a).getTime()) / 86_400_000);
 }
 

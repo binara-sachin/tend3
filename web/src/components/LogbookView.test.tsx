@@ -12,17 +12,20 @@ describe("LogbookView", () => {
     mswServer.use(
       http.get("/api/logbook", () =>
         HttpResponse.json([
-          { day: "2024-06-15", rows: [{ id: "todo-1", title: "Buy milk" }] },
-          { day: "2024-06-10", rows: [{ id: "todo-2", title: "Send invoice" }] },
+          { day: "2024-06-15", rows: [{ id: "todo-1", type: "todo", title: "Buy milk" }] },
+          { day: "2024-06-10", rows: [{ id: "todo-2", type: "todo", title: "Send invoice" }] },
         ]),
       ),
     );
 
     renderWithProviders(<LogbookView />);
 
-    expect(await screen.findByText("2024-06-15")).toBeInTheDocument();
+    // 2024-06-15 and 2024-06-10 are both in the past relative to "now", so
+    // the group header renders as a weekday/short-date label, not the raw
+    // ISO string — see web/src/format/logbookDay.ts.
+    expect(await screen.findByText("Sat, Jun 15")).toBeInTheDocument();
     expect(screen.getByText("Buy milk")).toBeInTheDocument();
-    expect(screen.getByText("2024-06-10")).toBeInTheDocument();
+    expect(screen.getByText("Mon, Jun 10")).toBeInTheDocument();
     expect(screen.getByText("Send invoice")).toBeInTheDocument();
   });
 });
