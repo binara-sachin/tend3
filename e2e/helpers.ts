@@ -44,6 +44,40 @@ export async function createProject(
   });
 }
 
+export async function createSubProject(
+  request: APIRequestContext,
+  parentId: string,
+  title: string,
+  sortKey: string,
+): Promise<NodeDetail> {
+  return runCommand(request, "CreateNode", {
+    parentId,
+    type: "project",
+    title,
+    notes: "",
+    sortKey,
+    whenDate: null,
+    deadline: null,
+  });
+}
+
+export async function createHeading(
+  request: APIRequestContext,
+  parentId: string,
+  title: string,
+  sortKey: string,
+): Promise<NodeDetail> {
+  return runCommand(request, "CreateNode", {
+    parentId,
+    type: "heading",
+    title,
+    notes: "",
+    sortKey,
+    whenDate: null,
+    deadline: null,
+  });
+}
+
 export interface CreateTodoOptions {
   title: string;
   sortKey: string;
