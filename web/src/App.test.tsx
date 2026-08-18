@@ -59,6 +59,7 @@ describe("App", () => {
           whenDate: null,
           deadline: null,
           completedAt: null,
+          path: [],
         }),
       ),
     );

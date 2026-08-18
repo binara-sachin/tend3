@@ -16,6 +16,7 @@ const NODE = {
   whenDate: "2024-06-01",
   deadline: null,
   completedAt: null,
+  path: [{ id: "p1", type: "project", title: "Work" }],
 };
 
 describe("DetailPane", () => {
