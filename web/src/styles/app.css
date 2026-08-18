@@ -1,0 +1,779 @@
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── app shell ─────────────────────────────────────────────────────── */
+
+.app-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── sidebar ───────────────────────────────────────────────────────── */
+
+.sidebar {
+  width: 236px;
+  flex: none;
+  padding: 20px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-right: 1px solid var(--color-divider);
+  overflow-y: auto;
+}
+
+.sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 11px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  text-align: left;
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.sidebar-item:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.sidebar-item--selected,
+.sidebar-item--selected:hover {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-300);
+}
+
+.sidebar-item-icon {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+.sidebar-item--selected .sidebar-item-icon {
+  color: var(--color-accent-300);
+}
+
+.sidebar-divider {
+  height: 1px;
+  margin: 2px 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-divider) 24px,
+    var(--color-divider) calc(100% - 24px),
+    transparent
+  );
+}
+
+.sidebar-rename-input {
+  width: 100%;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+}
+
+/* ── column stack ──────────────────────────────────────────────────── */
+
+.column-stack {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.column {
+  width: 320px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-divider);
+  overflow: hidden;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-divider);
+  flex: none;
+}
+
+.column-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.column-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.column-group-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 4px;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+/* ── toggle switch (Show completed) ───────────────────────────────── */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex: none;
+  white-space: nowrap;
+}
+
+.toggle-track {
+  width: 26px;
+  height: 15px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+  position: relative;
+  display: inline-block;
+  flex: none;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-neutral-500);
+  transition: left 0.12s ease;
+}
+
+.toggle[aria-pressed="true"] .toggle-track {
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.toggle[aria-pressed="true"] .toggle-thumb {
+  left: 13px;
+  background: var(--color-accent-300);
+}
+
+/* ── rows (columns, Today, Logbook, Trash) ────────────────────────── */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 8px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  background: transparent;
+}
+
+.row-main:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.row-main--selected,
+.row-main--selected:hover {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-300);
+}
+
+.row--nested .row-main {
+  padding-left: 24px;
+}
+
+.row-drag-handle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  padding: 0;
+  color: color-mix(in srgb, var(--color-text) 25%, transparent);
+  background: transparent;
+  border: none;
+  cursor: grab;
+}
+
+.row-icon {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+.row-icon--muted {
+  color: color-mix(in srgb, var(--color-text) 35%, transparent);
+}
+
+.row-main--selected .row-icon {
+  color: var(--color-accent-300);
+}
+
+.row-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-title--muted {
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  font-style: italic;
+}
+
+.row-notes-icon {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 35%, transparent);
+}
+
+.row-meta {
+  flex: none;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.row-rename-input {
+  flex: 1;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+}
+
+/* ── badges ────────────────────────────────────────────────────────── */
+
+.badge {
+  flex: none;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge--accent {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-300);
+}
+
+.badge--neutral {
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+/* ── detail pane ───────────────────────────────────────────────────── */
+
+.detail-pane {
+  width: 340px;
+  flex: none;
+  background: var(--color-surface);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+  overflow-y: auto;
+}
+
+.detail-breadcrumb {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-type-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 4px;
+}
+
+.detail-title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.field-label {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+  margin-bottom: 5px;
+}
+
+.detail-notes {
+  width: 100%;
+  min-height: 110px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  resize: vertical;
+}
+
+.detail-notes:hover {
+  border-color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.detail-notes:focus-visible {
+  border-color: var(--color-accent);
+  outline-offset: 0;
+}
+
+.detail-date-row {
+  display: flex;
+  gap: 11px;
+}
+
+.detail-date-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-input {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+
+.date-input:hover {
+  border-color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.date-input:focus-within {
+  border-color: var(--color-accent);
+}
+
+.date-input--empty {
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.date-input input[type="date"] {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.date-input-icon {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+/* ── smart lists (Today / Logbook / Trash) ────────────────────────── */
+
+.smart-list {
+  flex: 1;
+  padding: 26px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  max-width: 900px;
+  overflow-y: auto;
+}
+
+.smart-list-heading {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.smart-list-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.smart-list-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.smart-list-group-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.smart-list-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.smart-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+}
+
+.trash-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.trash-actions-caption {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.trash-row-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* ── buttons ───────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+}
+
+.btn-primary {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.btn-secondary {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 75%, transparent);
+  border-color: var(--color-divider);
+  border-radius: 7px;
+  padding: 5px 10px;
+}
+
+.btn-secondary:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.btn-ghost {
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  font-size: 12px;
+  padding: 5px 6px;
+}
+
+.btn-ghost:hover {
+  color: var(--color-text);
+}
+
+/* ── search palette ────────────────────────────────────────────────── */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: flex-start;
+  justify-items: center;
+  padding-top: 15vh;
+  background: color-mix(in srgb, var(--color-neutral-900) 50%, transparent);
+  z-index: 100;
+}
+
+.search-dialog {
+  width: min(560px, calc(100vw - 32px));
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.search-input-row input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--color-text);
+}
+
+.search-icon {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+.search-close {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.search-close:hover {
+  color: var(--color-text);
+}
+
+.search-results {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.search-result:hover,
+.search-result--active {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.search-result--active .search-result-title,
+.search-result--active .search-result-icon {
+  color: var(--color-accent-300);
+}
+
+.search-result-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-result-icon {
+  flex: none;
+  display: flex;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.search-result-title {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-title mark {
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+}
+
+.search-result-path {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.search-hints {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+/* ── drag and drop ─────────────────────────────────────────────────── */
+
+.drop-indicator {
+  height: 2px;
+  margin: 1px 8px;
+  border-radius: 2px;
+  background: var(--color-accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.row-main--drop-target {
+  box-shadow:
+    inset 0 0 0 1.5px var(--color-accent),
+    0 0 14px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.row--dragging {
+  opacity: 0.4;
+}
+
+.drag-overlay-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--color-neutral-700);
+  transform: rotate(-1deg);
+  width: 300px;
+}
