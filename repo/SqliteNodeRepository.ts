@@ -325,4 +325,33 @@ export class SqliteNodeRepository implements NodeRepository {
       .all(matchQuery) as RawNodeRow[];
     return rows.map(toNodeRow);
   }
+
+  getTodayCandidates(today: string): NodeRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM nodes
+         WHERE type = 'todo' AND completed_at IS NULL AND deleted_at IS NULL
+           AND (when_date <= ? OR deadline <= ?)`,
+      )
+      .all(today, today) as RawNodeRow[];
+    return rows.map(toNodeRow);
+  }
+
+  getCompletedTodos(): NodeRow[] {
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM nodes WHERE type = 'todo' AND completed_at IS NOT NULL AND deleted_at IS NULL",
+      )
+      .all() as RawNodeRow[];
+    return rows.map(toNodeRow);
+  }
+
+  getCandidateCompleteProjects(): NodeRow[] {
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM nodes WHERE type = 'project' AND deleted_at IS NULL AND open_descendant_count = 0",
+      )
+      .all() as RawNodeRow[];
+    return rows.map(toNodeRow);
+  }
 }

@@ -1,5 +1,5 @@
 import type { NodeRepository } from "../repo/NodeRepository.js";
-import type { NodeType } from "../repo/types.js";
+import type { NodeRow, NodeType } from "../repo/types.js";
 
 export interface ColumnRow {
   id: string;
@@ -14,21 +14,25 @@ export interface ColumnRow {
   openDescendantCount: number;
 }
 
+export function toColumnRow(repo: NodeRepository, n: NodeRow): ColumnRow {
+  return {
+    id: n.id,
+    type: n.type,
+    title: n.title,
+    sortKey: n.sortKey,
+    isSystem: n.isSystem,
+    whenDate: n.whenDate,
+    deadline: n.deadline,
+    completedAt: n.completedAt,
+    isComplete:
+      n.type === "project" ? n.openDescendantCount === 0 && repo.hasLiveDescendant(n.id) : null,
+    openDescendantCount: n.openDescendantCount,
+  };
+}
+
 export function getColumn(repo: NodeRepository, parentId: string | null): ColumnRow[] {
   return repo
     .getChildren(parentId)
     .filter((n) => n.deletedAt === null)
-    .map((n) => ({
-      id: n.id,
-      type: n.type,
-      title: n.title,
-      sortKey: n.sortKey,
-      isSystem: n.isSystem,
-      whenDate: n.whenDate,
-      deadline: n.deadline,
-      completedAt: n.completedAt,
-      isComplete:
-        n.type === "project" ? n.openDescendantCount === 0 && repo.hasLiveDescendant(n.id) : null,
-      openDescendantCount: n.openDescendantCount,
-    }));
+    .map((n) => toColumnRow(repo, n));
 }

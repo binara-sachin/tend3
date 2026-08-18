@@ -55,4 +55,11 @@ export interface NodeRepository {
   hasLiveDescendant(id: string): boolean;
   /** FTS5 prefix-match over title/notes, indexing everything (trashed included) — filtering is the query layer's job. */
   searchCandidates(query: string): NodeRow[];
+
+  /** Live, incomplete todos due or overdue by `today` (when_date <= today OR deadline <= today). */
+  getTodayCandidates(today: string): NodeRow[];
+  /** Live, completed todos, any date. */
+  getCompletedTodos(): NodeRow[];
+  /** Live projects with open_descendant_count = 0 — derived-complete once the caller also checks hasLiveDescendant. */
+  getCandidateCompleteProjects(): NodeRow[];
 }
