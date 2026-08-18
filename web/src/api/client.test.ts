@@ -3,7 +3,7 @@ import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import "../test/setup.js";
 import { mswServer } from "../test/mswServer.js";
-import { getColumn, getNode, runCommand } from "./client.js";
+import { getColumn, getNode, redo, runCommand, undo } from "./client.js";
 
 describe("getColumn", () => {
   it("fetches and parses a column's rows", async () => {
@@ -91,5 +91,25 @@ describe("runCommand", () => {
     await expect(runCommand("RenameNode", { nodeId: "x", title: "" })).rejects.toThrow(
       "bad request",
     );
+  });
+});
+
+describe("undo", () => {
+  it("posts to /api/undo and returns the parsed result", async () => {
+    mswServer.use(http.post("/api/undo", () => HttpResponse.json({ ok: true })));
+
+    const result = await undo();
+
+    expect(result).toEqual({ ok: true });
+  });
+});
+
+describe("redo", () => {
+  it("posts to /api/redo and returns the parsed result", async () => {
+    mswServer.use(http.post("/api/redo", () => HttpResponse.json({ ok: false })));
+
+    const result = await redo();
+
+    expect(result).toEqual({ ok: false });
   });
 });

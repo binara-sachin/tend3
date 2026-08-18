@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getColumn, getLogbook, getNode, getToday, getTrash, runCommand } from "../api/client.js";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { getColumn, getLogbook, getNode, getToday, getTrash, redo, runCommand, undo } from "../api/client.js";
 import { useUiStore } from "../store/uiStore.js";
 
 export function useColumn(parentId: string | null) {
@@ -36,21 +36,46 @@ export interface RunCommandVars {
   parentId?: string;
 }
 
+function invalidateAfterMutation(queryClient: QueryClient, parentId?: string) {
+  if (parentId !== undefined) {
+    queryClient.invalidateQueries({ queryKey: ["columns", parentId] });
+  }
+  const openPath = useUiStore.getState().openPath;
+  for (const entry of openPath) {
+    queryClient.invalidateQueries({ queryKey: ["columns", entry.id] });
+  }
+  const lastEntry = openPath.at(-1);
+  if (lastEntry?.type === "todo") {
+    queryClient.invalidateQueries({ queryKey: ["node", lastEntry.id] });
+  }
+  queryClient.invalidateQueries({ queryKey: ["today"] });
+  queryClient.invalidateQueries({ queryKey: ["logbook"] });
+  queryClient.invalidateQueries({ queryKey: ["trash"] });
+}
+
 export function useRunCommand() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (vars: RunCommandVars) => runCommand(vars.type, vars.payload),
-    onSuccess: (_data, vars) => {
-      if (vars.parentId !== undefined) {
-        queryClient.invalidateQueries({ queryKey: ["columns", vars.parentId] });
-      }
-      for (const entry of useUiStore.getState().openPath) {
-        queryClient.invalidateQueries({ queryKey: ["columns", entry.id] });
-      }
-      queryClient.invalidateQueries({ queryKey: ["today"] });
-      queryClient.invalidateQueries({ queryKey: ["logbook"] });
-      queryClient.invalidateQueries({ queryKey: ["trash"] });
-    },
+    onSuccess: (_data, vars) => invalidateAfterMutation(queryClient, vars.parentId),
+  });
+}
+
+export function useUndo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => undo(),
+    onSuccess: () => invalidateAfterMutation(queryClient),
+  });
+}
+
+export function useRedo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => redo(),
+    onSuccess: () => invalidateAfterMutation(queryClient),
   });
 }

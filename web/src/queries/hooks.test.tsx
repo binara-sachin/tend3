@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import "../test/setup.js";
 import { mswServer } from "../test/mswServer.js";
 import { useUiStore } from "../store/uiStore.js";
-import { useColumn, useNode, useRunCommand } from "./hooks.js";
+import { useColumn, useNode, useRedo, useRunCommand, useUndo } from "./hooks.js";
 
 const INITIAL_UI_STATE = useUiStore.getState();
 
@@ -74,5 +74,54 @@ describe("useRunCommand", () => {
     expect(queryClient.getQueryState(["columns", "p1"])?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(["columns", "ancestor1"])?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(["columns", "unrelated"])?.isInvalidated).toBe(false);
+  });
+
+  it("also invalidates the currently-open node's detail query when the open path ends on a todo", async () => {
+    mswServer.use(http.post("/api/commands", () => HttpResponse.json({ id: "x" })));
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["node", "todo-1"], { id: "todo-1" });
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
+    useUiStore.getState().select(1, { id: "todo-1", type: "todo" });
+
+    const { result } = renderHook(() => useRunCommand(), { wrapper: wrapperWith(queryClient) });
+    result.current.mutate({ type: "SetNotes", payload: { nodeId: "todo-1", notes: "x" }, parentId: "p1" });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(["node", "todo-1"])?.isInvalidated).toBe(true);
+  });
+});
+
+describe("useUndo", () => {
+  it("invalidates every open-path column, the smart lists, and the open node on success", async () => {
+    mswServer.use(http.post("/api/undo", () => HttpResponse.json({ ok: true })));
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["columns", "p1"], []);
+    queryClient.setQueryData(["today"], []);
+    queryClient.setQueryData(["node", "todo-1"], { id: "todo-1" });
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
+    useUiStore.getState().select(1, { id: "todo-1", type: "todo" });
+
+    const { result } = renderHook(() => useUndo(), { wrapper: wrapperWith(queryClient) });
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(["columns", "p1"])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(["today"])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(["node", "todo-1"])?.isInvalidated).toBe(true);
+  });
+});
+
+describe("useRedo", () => {
+  it("invalidates the same broad set of queries on success", async () => {
+    mswServer.use(http.post("/api/redo", () => HttpResponse.json({ ok: true })));
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["trash"], []);
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
+
+    const { result } = renderHook(() => useRedo(), { wrapper: wrapperWith(queryClient) });
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(["trash"])?.isInvalidated).toBe(true);
   });
 });

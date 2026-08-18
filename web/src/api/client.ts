@@ -59,3 +59,13 @@ export async function getSearchResults(query: string): Promise<SearchResult[]> {
   const res = await fetch(apiUrl(`/api/search?${new URLSearchParams({ q: query })}`));
   return parseOrThrow<SearchResult[]>(res);
 }
+
+export async function undo(): Promise<{ ok: boolean }> {
+  const res = await fetch(apiUrl("/api/undo"), { method: "POST" });
+  return parseOrThrow<{ ok: boolean }>(res);
+}
+
+export async function redo(): Promise<{ ok: boolean }> {
+  const res = await fetch(apiUrl("/api/redo"), { method: "POST" });
+  return parseOrThrow<{ ok: boolean }>(res);
+}
