@@ -46,6 +46,20 @@ describe("getLogbook", () => {
     expect(groups.find((g) => g.day === "2024-06-16")).toBeUndefined();
   });
 
+  it("includes the immediate parent's title on a completed-todo row", () => {
+    const project = newNodeInput({ type: "project", title: "Work" });
+    repo.insert(project);
+    const todo = newNodeInput({ type: "todo", parentId: project.id });
+    repo.insert(todo);
+    repo.adjustOpenDescendantCount([project.id], 1);
+    repo.updateCompletedAt(todo.id, "2024-06-15T00:00:00.000Z", "2024-06-15T00:00:00.000Z");
+
+    const groups = getLogbook(repo);
+
+    const row = groups[0]?.rows.find((r) => r.id === todo.id);
+    expect(row?.parentTitle).toBe("Work");
+  });
+
   it("falls back to updated_at for a derived-complete project with no completed todo descendant", () => {
     const project = newNodeInput({ type: "project" });
     repo.insert(project);

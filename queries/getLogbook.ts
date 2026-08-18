@@ -3,9 +3,14 @@ import type { NodeRow } from "../repo/types.js";
 import { hasTrashedAncestor } from "./ancestryFilters.js";
 import { toColumnRow, type ColumnRow } from "./getColumn.js";
 
+export interface LogbookRow extends ColumnRow {
+  /** Immediate parent's title, or null for a root-level row. */
+  parentTitle: string | null;
+}
+
 export interface LogbookGroup {
   day: string;
-  rows: ColumnRow[];
+  rows: LogbookRow[];
 }
 
 function calendarDay(isoTimestamp: string): string {
@@ -41,6 +46,9 @@ export function getLogbook(repo: NodeRepository): LogbookGroup[] {
       rows: rows
         .slice()
         .sort((a, b) => (a.sortKey < b.sortKey ? -1 : a.sortKey > b.sortKey ? 1 : 0))
-        .map((n) => toColumnRow(repo, n)),
+        .map((n) => ({
+          ...toColumnRow(repo, n),
+          parentTitle: n.parentId ? (repo.getById(n.parentId)?.title ?? null) : null,
+        })),
     }));
 }

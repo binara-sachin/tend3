@@ -21,6 +21,16 @@ describe("getTrash", () => {
     expect(rows.map((r) => r.id)).toEqual([project.id]);
   });
 
+  it("includes the deletedAt timestamp on each row", () => {
+    const project = newNodeInput({ type: "project" });
+    repo.insert(project);
+    repo.updateDeletedAt(project.id, "2024-06-15T00:00:00.000Z", "2024-06-15T00:00:00.000Z");
+
+    const rows = getTrash(repo);
+
+    expect(rows[0]?.deletedAt).toBe("2024-06-15T00:00:00.000Z");
+  });
+
   it("does not list a separately-trashed descendant of an already-trashed root independently", () => {
     const project = newNodeInput({ type: "project" });
     repo.insert(project);
