@@ -19,6 +19,7 @@ export interface NodeRepository {
     updatedAt: string,
   ): void;
   updateTitle(id: string, title: string, updatedAt: string): void;
+  updateSortKey(id: string, sortKey: string, updatedAt: string): void;
   updateNotes(id: string, notes: string, updatedAt: string): void;
   updateWhenDate(id: string, whenDate: string | null, updatedAt: string): void;
   updateDeadline(id: string, deadline: string | null, updatedAt: string): void;

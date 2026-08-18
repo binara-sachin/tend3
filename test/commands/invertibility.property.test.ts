@@ -7,6 +7,7 @@ import { executeCommand } from "../../commands/executeCommand.js";
 import { HardDeleteNode } from "../../commands/HardDeleteNode.js";
 import { RenameNode } from "../../commands/RenameNode.js";
 import { MoveNode } from "../../commands/MoveNode.js";
+import { Rebalance } from "../../commands/Rebalance.js";
 import { RestoreNode } from "../../commands/RestoreNode.js";
 import { SetCompleted } from "../../commands/SetCompleted.js";
 import { SetDeadline } from "../../commands/SetDeadline.js";
@@ -152,6 +153,14 @@ export const REGISTERED_COMMANDS: CommandCase[] = [
       // precondition RestoreNode needs: a node that is currently trashed.
       new TrashNode(target.id, "2024-04-15T00:00:00.000Z").apply(ctx);
       return new RestoreNode(target.id);
+    },
+  },
+  {
+    name: "Rebalance",
+    build: (repo, nodes) => {
+      const parentWithChildren = nodes.find((n) => repo.getChildren(n.id).length > 0);
+      if (!parentWithChildren) return undefined;
+      return new Rebalance(parentWithChildren.id);
     },
   },
 ];

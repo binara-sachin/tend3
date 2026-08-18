@@ -140,6 +140,12 @@ export class SqliteNodeRepository implements NodeRepository {
       .run(title, updatedAt, id);
   }
 
+  updateSortKey(id: string, sortKey: string, updatedAt: string): void {
+    this.db
+      .prepare("UPDATE nodes SET sort_key = ?, updated_at = ? WHERE id = ?")
+      .run(sortKey, updatedAt, id);
+  }
+
   updateNotes(id: string, notes: string, updatedAt: string): void {
     this.db
       .prepare("UPDATE nodes SET notes = ?, updated_at = ? WHERE id = ?")

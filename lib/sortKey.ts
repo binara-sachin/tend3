@@ -1,4 +1,4 @@
-import { generateKeyBetween } from "fractional-indexing";
+import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 
 export function firstSortKey(): string {
   return generateKeyBetween(null, null);
@@ -13,4 +13,9 @@ export function sortKeyBetween(
   nextKey: string | null,
 ): string {
   return generateKeyBetween(prevKey, nextKey);
+}
+
+/** N evenly-spaced keys, ascending — used by Rebalance to renumber a parent's children. */
+export function evenlySpacedKeys(count: number): string[] {
+  return generateNKeysBetween(null, null, count);
 }

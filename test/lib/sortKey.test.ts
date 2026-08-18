@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstSortKey, sortKeyAfter, sortKeyBetween } from "../../lib/sortKey.js";
+import { evenlySpacedKeys, firstSortKey, sortKeyAfter, sortKeyBetween } from "../../lib/sortKey.js";
 
 describe("firstSortKey", () => {
   it("returns a non-empty string", () => {
@@ -34,5 +34,22 @@ describe("sortKeyBetween", () => {
 
     expect(middle > a).toBe(true);
     expect(middle < b).toBe(true);
+  });
+});
+
+describe("evenlySpacedKeys", () => {
+  it("returns N keys in ascending order", () => {
+    const keys = evenlySpacedKeys(5);
+
+    expect(keys).toHaveLength(5);
+    expect([...keys].sort()).toEqual(keys);
+  });
+
+  it("returns an empty array for zero", () => {
+    expect(evenlySpacedKeys(0)).toEqual([]);
+  });
+
+  it("returns a single key for one", () => {
+    expect(evenlySpacedKeys(1)).toHaveLength(1);
   });
 });

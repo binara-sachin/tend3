@@ -205,6 +205,20 @@ describe("update methods", () => {
     expect(row?.sortKey).toBe("b");
     expect(row?.updatedAt).toBe("2024-02-01T00:00:00.000Z");
   });
+
+  it("updateSortKey changes only sort_key and updated_at, leaving parent_id untouched", () => {
+    const parent = newNodeInput({ type: "project" });
+    repo.insert(parent);
+    const node = newNodeInput({ type: "todo", parentId: parent.id, sortKey: "a" });
+    repo.insert(node);
+
+    repo.updateSortKey(node.id, "z", "2024-02-01T00:00:00.000Z");
+
+    const row = repo.getById(node.id);
+    expect(row?.sortKey).toBe("z");
+    expect(row?.parentId).toBe(parent.id);
+    expect(row?.updatedAt).toBe("2024-02-01T00:00:00.000Z");
+  });
 });
 
 describe("ancestor walk", () => {
