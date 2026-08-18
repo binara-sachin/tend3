@@ -62,7 +62,7 @@ textarea {
   overflow-y: auto;
 }
 
-.sidebar-list {
+.list-reset {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -272,6 +272,19 @@ textarea {
 
 .row--nested .row-main {
   padding-left: 24px;
+}
+
+.row-main--heading {
+  padding-top: 10px;
+  padding-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.row-main--heading:hover {
+  background: transparent;
 }
 
 .row-drag-handle {

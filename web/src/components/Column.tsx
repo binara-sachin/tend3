@@ -2,9 +2,20 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
-import { useColumn, useRunCommand } from "../queries/hooks.js";
+import { useColumn, useNode, useRunCommand } from "../queries/hooks.js";
 import { useUiStore } from "../store/uiStore.js";
 import type { ColumnRow } from "../../../queries/getColumn.js";
+import { formatColumnDueBadge } from "../format/dueBadge.js";
+import { todayDateString } from "../dnd/sidebarActions.js";
+import {
+  CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CircleIcon,
+  DocumentIcon,
+  DragHandleIcon,
+  FolderIcon,
+} from "../icons.js";
 
 function columnKey(parentId: string | null): string {
   return parentId ?? "root";
@@ -13,6 +24,8 @@ function columnKey(parentId: string | null): string {
 interface RowProps {
   row: ColumnRow;
   parentKey: string;
+  isExpanded: boolean;
+  isNested: boolean;
   isRenaming: boolean;
   onStartRename(): void;
   onSubmitRename(title: string): void;
@@ -23,6 +36,8 @@ interface RowProps {
 function Row({
   row,
   parentKey,
+  isExpanded,
+  isNested,
   isRenaming,
   onStartRename,
   onSubmitRename,
@@ -36,7 +51,7 @@ function Row({
   // Only project rows are valid "reparent into" whole-row targets; the ref
   // is simply never attached for other row types (see the JSX below), so
   // dnd-kit never registers/measures a droppable for them.
-  const { setNodeRef: setWholeRowDropRef } = useDroppable({
+  const { setNodeRef: setWholeRowDropRef, isOver: isWholeRowOver } = useDroppable({
     id: `project-drop-${row.id}`,
     data: { parentId: row.id, type: "whole-row" },
   });
@@ -46,6 +61,7 @@ function Row({
       // eslint-disable-next-line jsx-a11y/no-autofocus
       <input
         autoFocus
+        className="row-rename-input"
         defaultValue={row.title}
         onKeyDown={(e) => {
           if (e.key === "Enter") onSubmitRename(e.currentTarget.value);
@@ -55,13 +71,22 @@ function Row({
     );
   }
 
+  const badge = row.type === "todo" ? formatColumnDueBadge(row.whenDate, todayDateString(new Date())) : null;
+
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, display: "flex" }}
+      className={`row${isNested && row.type !== "heading" ? " row--nested" : ""}`}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      <button type="button" aria-label={`Drag ${row.title}`} {...attributes} {...listeners}>
-        ⠿
+      <button
+        type="button"
+        className="row-drag-handle"
+        aria-label={`Drag ${row.title}`}
+        {...attributes}
+        {...listeners}
+      >
+        <DragHandleIcon />
       </button>
       <div
         ref={row.type === "project" ? setWholeRowDropRef : undefined}
@@ -69,7 +94,7 @@ function Row({
         tabIndex={0}
         data-row="true"
         data-droppable-id={row.type === "project" ? `project-drop-${row.id}` : undefined}
-        style={{ minHeight: "1.4em" }}
+        className={`row-main${row.type === "heading" ? " row-main--heading" : ""}${isWholeRowOver ? " row-main--drop-target" : ""}`}
         onClick={onSelect}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -98,7 +123,33 @@ function Row({
           }
         }}
       >
+        {row.type === "heading" ? (
+          <span className="row-icon">
+            {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          </span>
+        ) : (
+          <span className="row-icon">
+            {row.type === "project" ? (
+              <FolderIcon size={15} />
+            ) : row.completedAt !== null ? (
+              <CheckCircleIcon size={16} />
+            ) : (
+              <CircleIcon size={16} />
+            )}
+          </span>
+        )}
         {row.title}
+        {row.type === "todo" && row.hasNotes && (
+          <span className="row-notes-icon" title="Has notes">
+            <DocumentIcon />
+          </span>
+        )}
+        {badge && <span className={`badge badge--${badge.tone}`}>{badge.text}</span>}
+        {row.type === "project" && (
+          <span className="row-icon row-icon--muted">
+            <ChevronRightIcon />
+          </span>
+        )}
       </div>
     </div>
   );
@@ -107,9 +158,10 @@ function Row({
 interface ColumnBodyProps {
   parentId: string | null;
   depth: number;
+  nested?: boolean;
 }
 
-function ColumnBody({ parentId, depth }: ColumnBodyProps) {
+function ColumnBody({ parentId, depth, nested = false }: ColumnBodyProps) {
   const { data: rows } = useColumn(parentId);
   const showCompleted = useUiStore((s) => s.showCompleted[columnKey(parentId)] ?? false);
   const select = useUiStore((s) => s.select);
@@ -139,12 +191,14 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
 
   return (
     <SortableContext items={visibleRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-      <ul>
+      <ul className="list-reset">
         {visibleRows.map((row) => (
           <li key={row.id}>
             <Row
               row={row}
               parentKey={parentKey}
+              isExpanded={!!expandedHeadings[row.id]}
+              isNested={nested}
               isRenaming={renamingId === row.id}
               onStartRename={() => setRenamingId(row.id)}
               onSubmitRename={(title) => submitRename(row.id, title)}
@@ -159,7 +213,7 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
               }}
             />
             {row.type === "heading" && expandedHeadings[row.id] && (
-              <ColumnBody parentId={row.id} depth={depth} />
+              <ColumnBody parentId={row.id} depth={depth} nested />
             )}
           </li>
         ))}
@@ -175,6 +229,7 @@ export interface ColumnProps {
 
 export function Column({ parentId, depth }: ColumnProps) {
   const key = columnKey(parentId);
+  const { data: node } = useNode(parentId);
   const showCompleted = useUiStore((s) => s.showCompleted[key] ?? false);
   const toggleShowCompleted = useUiStore((s) => s.toggleShowCompleted);
   const setFocusedColumnParentId = useUiStore((s) => s.setFocusedColumnParentId);
@@ -184,11 +239,24 @@ export function Column({ parentId, depth }: ColumnProps) {
   }, [key, setFocusedColumnParentId]);
 
   return (
-    <div onClick={() => setFocusedColumnParentId(key)}>
-      <button type="button" aria-pressed={showCompleted} onClick={() => toggleShowCompleted(key)}>
-        Show completed
-      </button>
-      <ColumnBody parentId={parentId} depth={depth} />
+    <div className="column" onClick={() => setFocusedColumnParentId(key)}>
+      <div className="column-header">
+        <span className="column-title">{node?.title ?? ""}</span>
+        <button
+          type="button"
+          className="toggle"
+          aria-pressed={showCompleted}
+          onClick={() => toggleShowCompleted(key)}
+        >
+          Show completed
+          <span className="toggle-track">
+            <span className="toggle-thumb" />
+          </span>
+        </button>
+      </div>
+      <div className="column-body">
+        <ColumnBody parentId={parentId} depth={depth} />
+      </div>
     </div>
   );
 }

@@ -99,7 +99,7 @@ describe("ColumnStack", () => {
     window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 150, pointerId: 1 }));
     window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 150, pointerId: 1 }));
 
-    expect(useUiStore.getState().columnWidths[1]).toBe(330); // default 280 + 50px delta (depth 1: sidebar owns depth 0)
+    expect(useUiStore.getState().columnWidths[1]).toBe(370); // default 320 + 50px delta (depth 1: sidebar owns depth 0)
   });
 
   it("ArrowRight/ArrowLeft moves focus between adjacent columns", async () => {

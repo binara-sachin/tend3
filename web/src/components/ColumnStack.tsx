@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useUiStore } from "../store/uiStore.js";
 import { Column } from "./Column.js";
 
-const DEFAULT_WIDTH = 280;
+const DEFAULT_WIDTH = 320;
 
 interface ResizableColumnProps {
   depth: number;
@@ -40,12 +40,14 @@ function ResizableColumn({ depth, width, onResize, children }: ResizableColumnPr
       data-depth={depth}
       style={{ width: liveWidth ?? width, flexShrink: 0, display: "flex" }}
     >
-      <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        {children}
+      </div>
       <div
         role="separator"
         aria-orientation="vertical"
         onPointerDown={onPointerDown}
-        style={{ width: 4, cursor: "col-resize" }}
+        style={{ width: 4, cursor: "col-resize", flex: "none" }}
       />
     </div>
   );
@@ -63,7 +65,7 @@ export function ColumnStack() {
   const projectIds = openPath.filter((e) => e.type === "project").map((e) => e.id);
 
   return (
-    <div style={{ display: "flex" }}>
+    <div className="column-stack">
       {projectIds.map((parentId, index) => {
         const depth = index + 1;
         return (
