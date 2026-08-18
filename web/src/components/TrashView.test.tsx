@@ -19,6 +19,7 @@ function row(overrides: Partial<Record<string, unknown>>) {
     completedAt: null,
     isComplete: false,
     openDescendantCount: 0,
+    deletedAt: "2024-01-01T00:00:00.000Z",
     ...overrides,
   };
 }

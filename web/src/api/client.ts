@@ -1,10 +1,11 @@
 import type { ColumnRow } from "../../../queries/getColumn.js";
-import type { LogbookGroup } from "../../../queries/getLogbook.js";
+import type { LogbookGroup, LogbookRow } from "../../../queries/getLogbook.js";
 import type { NodeDetail } from "../../../queries/getNode.js";
 import type { SearchResult } from "../../../queries/getSearchResults.js";
 import type { TodayGroup } from "../../../queries/getToday.js";
+import type { TrashRow } from "../../../queries/getTrash.js";
 
-export type { ColumnRow, LogbookGroup, NodeDetail, SearchResult, TodayGroup };
+export type { ColumnRow, LogbookGroup, LogbookRow, NodeDetail, SearchResult, TodayGroup, TrashRow };
 
 // Node's global fetch (unlike a browser's) has no implicit base URL, so a
 // bare relative path fails to parse under Vitest. window.location.origin
@@ -50,9 +51,9 @@ export async function getLogbook(): Promise<LogbookGroup[]> {
   return parseOrThrow<LogbookGroup[]>(res);
 }
 
-export async function getTrash(): Promise<ColumnRow[]> {
+export async function getTrash(): Promise<TrashRow[]> {
   const res = await fetch(apiUrl("/api/trash"));
-  return parseOrThrow<ColumnRow[]>(res);
+  return parseOrThrow<TrashRow[]>(res);
 }
 
 export async function getSearchResults(query: string): Promise<SearchResult[]> {
