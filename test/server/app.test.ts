@@ -69,6 +69,85 @@ describe("GET /api/nodes/:id", () => {
   });
 });
 
+describe("GET /api/today", () => {
+  it("returns todos due today grouped by project", async () => {
+    const project = newNodeInput({ type: "project" });
+    repo.insert(project);
+    const todo = newNodeInput({ type: "todo", parentId: project.id, whenDate: "2024-06-01" });
+    repo.insert(todo);
+
+    const res = await request(app).get("/api/today");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      expect.objectContaining({
+        projectId: project.id,
+        rows: [expect.objectContaining({ id: todo.id })],
+      }),
+    ]);
+  });
+});
+
+describe("GET /api/logbook", () => {
+  it("returns completed todos grouped by completion day", async () => {
+    const project = newNodeInput({ type: "project" });
+    repo.insert(project);
+    repo.adjustOpenDescendantCount([project.id], 1);
+    const todo = newNodeInput({ type: "todo", parentId: project.id });
+    repo.insert(todo);
+    repo.updateCompletedAt(todo.id, "2024-06-01T00:00:00.000Z", "2024-06-01T00:00:00.000Z");
+
+    const res = await request(app).get("/api/logbook");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      expect.objectContaining({
+        day: "2024-06-01",
+        rows: [expect.objectContaining({ id: todo.id })],
+      }),
+    ]);
+  });
+});
+
+describe("GET /api/trash", () => {
+  it("returns trashed roots", async () => {
+    const node = newNodeInput({ type: "project" });
+    repo.insert(node);
+    repo.updateDeletedAt(node.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
+
+    const res = await request(app).get("/api/trash");
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((r: { id: string }) => r.id)).toEqual([node.id]);
+  });
+});
+
+describe("GET /api/search", () => {
+  it("returns matching live nodes with their path", async () => {
+    const project = newNodeInput({ type: "project" });
+    repo.insert(project);
+    const todo = newNodeInput({ type: "todo", parentId: project.id, title: "Buy milk" });
+    repo.insert(todo);
+
+    const res = await request(app).get("/api/search").query({ q: "milk" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      expect.objectContaining({
+        id: todo.id,
+        path: [expect.objectContaining({ id: project.id })],
+      }),
+    ]);
+  });
+
+  it("returns an empty array rather than an error when q is missing", async () => {
+    const res = await request(app).get("/api/search");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+});
+
 describe("POST /api/commands", () => {
   it("creates a todo and returns it", async () => {
     const root = newNodeInput({ type: "project" });
@@ -144,6 +223,17 @@ describe("POST /api/commands", () => {
   });
 
   it("rejects a command type not exposed over HTTP", async () => {
+    const node = newNodeInput({ type: "todo" });
+    repo.insert(node);
+
+    const res = await request(app)
+      .post("/api/commands")
+      .send({ type: "HardDeleteNode", payload: { nodeId: node.id } });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("restores a trashed node", async () => {
     const node = newNodeInput({ type: "project" });
     repo.insert(node);
     repo.updateDeletedAt(node.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
@@ -151,6 +241,42 @@ describe("POST /api/commands", () => {
     const res = await request(app)
       .post("/api/commands")
       .send({ type: "RestoreNode", payload: { nodeId: node.id } });
+
+    expect(res.status).toBe(200);
+    expect(repo.getById(node.id)?.deletedAt).toBeNull();
+  });
+
+  it("empties the trash", async () => {
+    const node = newNodeInput({ type: "project" });
+    repo.insert(node);
+    repo.updateDeletedAt(node.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
+
+    const res = await request(app).post("/api/commands").send({ type: "EmptyTrash", payload: {} });
+
+    expect(res.status).toBe(200);
+    expect(repo.getById(node.id)).toBeNull();
+  });
+
+  it("purges a single trash root", async () => {
+    const node = newNodeInput({ type: "project" });
+    repo.insert(node);
+    repo.updateDeletedAt(node.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
+
+    const res = await request(app)
+      .post("/api/commands")
+      .send({ type: "PurgeNode", payload: { nodeId: node.id } });
+
+    expect(res.status).toBe(200);
+    expect(repo.getById(node.id)).toBeNull();
+  });
+
+  it("rejects purging a node that is not a trash root", async () => {
+    const node = newNodeInput({ type: "project" });
+    repo.insert(node);
+
+    const res = await request(app)
+      .post("/api/commands")
+      .send({ type: "PurgeNode", payload: { nodeId: node.id } });
 
     expect(res.status).toBe(400);
   });

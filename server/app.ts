@@ -5,7 +5,11 @@ import type { CommandContext } from "../commands/Command.js";
 import { executeCommand } from "../commands/executeCommand.js";
 import { Rebalance } from "../commands/Rebalance.js";
 import { getColumn } from "../queries/getColumn.js";
+import { getLogbook } from "../queries/getLogbook.js";
 import { getNode } from "../queries/getNode.js";
+import { getSearchResults } from "../queries/getSearchResults.js";
+import { getToday } from "../queries/getToday.js";
+import { getTrash } from "../queries/getTrash.js";
 import type { CommandLogRepository } from "../repo/CommandLogRepository.js";
 import type { NodeRepository } from "../repo/NodeRepository.js";
 import { buildCommand } from "./commandDispatch.js";
@@ -41,6 +45,23 @@ export function createApp(
     res.json(node);
   });
 
+  app.get("/api/today", (_req, res) => {
+    res.json(getToday(repo, ctx.now().slice(0, 10)));
+  });
+
+  app.get("/api/logbook", (_req, res) => {
+    res.json(getLogbook(repo));
+  });
+
+  app.get("/api/trash", (_req, res) => {
+    res.json(getTrash(repo));
+  });
+
+  app.get("/api/search", (req, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    res.json(getSearchResults(repo, q));
+  });
+
   app.post("/api/commands", (req, res) => {
     try {
       const { command, nodeId, affectedParentId } = buildCommand(
@@ -59,7 +80,7 @@ export function createApp(
         }
       }
 
-      res.json(getNode(repo, nodeId));
+      res.json(nodeId !== null ? getNode(repo, nodeId) : null);
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
     }

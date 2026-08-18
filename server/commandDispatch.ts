@@ -1,7 +1,10 @@
 import type { Command, CommandContext } from "../commands/Command.js";
 import { CreateNode } from "../commands/CreateNode.js";
+import { EmptyTrash } from "../commands/EmptyTrash.js";
 import { MoveNode } from "../commands/MoveNode.js";
+import { PurgeNode } from "../commands/PurgeNode.js";
 import { RenameNode } from "../commands/RenameNode.js";
+import { RestoreNode } from "../commands/RestoreNode.js";
 import { SetCompleted } from "../commands/SetCompleted.js";
 import { SetDeadline } from "../commands/SetDeadline.js";
 import { SetNotes } from "../commands/SetNotes.js";
@@ -10,14 +13,13 @@ import { TrashNode } from "../commands/TrashNode.js";
 import type { NodeType } from "../repo/types.js";
 
 /**
- * Commands exposed over HTTP this phase. RestoreNode/EmptyTrash (Trash view)
- * and HardDeleteNode (an inverse only, never issued directly) are
- * deliberately not reachable here.
+ * Commands exposed over HTTP this phase. HardDeleteNode (an inverse only,
+ * never issued directly) is deliberately not reachable here.
  */
 export interface DispatchedCommand {
   command: Command;
-  /** The node the caller should re-fetch after apply() to see the result. */
-  nodeId: string;
+  /** The node the caller should re-fetch after apply() to see the result, or null for a command with no single subject node. */
+  nodeId: string | null;
   /** Parent whose children may now need rebalancing (null: no check needed — e.g. root-level, or unaffected). */
   affectedParentId: string | null;
 }
@@ -89,6 +91,24 @@ export function buildCommand(ctx: CommandContext, type: string, payload: unknown
         nodeId: p.nodeId as string,
         affectedParentId: null,
         command: new TrashNode(p.nodeId as string, ctx.now()),
+      };
+    case "RestoreNode":
+      return {
+        nodeId: p.nodeId as string,
+        affectedParentId: null,
+        command: new RestoreNode(p.nodeId as string),
+      };
+    case "EmptyTrash":
+      return {
+        nodeId: null,
+        affectedParentId: null,
+        command: new EmptyTrash(),
+      };
+    case "PurgeNode":
+      return {
+        nodeId: p.nodeId as string,
+        affectedParentId: null,
+        command: new PurgeNode(p.nodeId as string),
       };
     default:
       throw new Error(`Command type '${type}' is not exposed over HTTP`);
