@@ -13,6 +13,7 @@ import { getTrash } from "../queries/getTrash.js";
 import type { CommandLogRepository } from "../repo/CommandLogRepository.js";
 import type { NodeRepository } from "../repo/NodeRepository.js";
 import { buildCommand } from "./commandDispatch.js";
+import { createUndoStack } from "./undoStack.js";
 
 export interface CreateAppOptions {
   /** Directory holding the built frontend (vite build's outDir). Defaults to dist/web. */
@@ -30,6 +31,7 @@ export function createApp(
 ): Express {
   const app = express();
   app.use(express.json());
+  const undoStack = createUndoStack();
 
   app.get("/api/columns/:parentId", (req, res) => {
     const parentId = req.params.parentId === "root" ? null : req.params.parentId;
@@ -70,17 +72,36 @@ export function createApp(
         req.body.payload,
       );
       executeCommand(command, ctx, commandLog);
+      undoStack.push(command);
 
       if (affectedParentId !== null) {
         const needsRebalance = repo
           .getChildren(affectedParentId)
           .some((child) => child.sortKey.length > REBALANCE_THRESHOLD);
         if (needsRebalance) {
-          executeCommand(new Rebalance(affectedParentId), ctx, commandLog);
+          const rebalance = new Rebalance(affectedParentId);
+          executeCommand(rebalance, ctx, commandLog);
+          undoStack.push(rebalance);
         }
       }
 
       res.json(nodeId !== null ? getNode(repo, nodeId) : null);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  app.post("/api/undo", (_req, res) => {
+    try {
+      res.json({ ok: undoStack.undo(ctx, commandLog) });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  app.post("/api/redo", (_req, res) => {
+    try {
+      res.json({ ok: undoStack.redo(ctx, commandLog) });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
     }

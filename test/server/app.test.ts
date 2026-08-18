@@ -314,6 +314,98 @@ describe("POST /api/commands", () => {
   });
 });
 
+describe("POST /api/undo and /api/redo", () => {
+  it("undoes the last command", async () => {
+    const node = newNodeInput({ type: "todo", title: "old" });
+    repo.insert(node);
+    await request(app)
+      .post("/api/commands")
+      .send({ type: "RenameNode", payload: { nodeId: node.id, title: "new" } });
+
+    const res = await request(app).post("/api/undo");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(repo.getById(node.id)?.title).toBe("old");
+  });
+
+  it("redoes after an undo", async () => {
+    const node = newNodeInput({ type: "todo", title: "old" });
+    repo.insert(node);
+    await request(app)
+      .post("/api/commands")
+      .send({ type: "RenameNode", payload: { nodeId: node.id, title: "new" } });
+    await request(app).post("/api/undo");
+
+    const res = await request(app).post("/api/redo");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(repo.getById(node.id)?.title).toBe("new");
+  });
+
+  it("returns { ok: false } when there is nothing to undo", async () => {
+    const res = await request(app).post("/api/undo");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: false });
+  });
+
+  it("returns { ok: false } when there is nothing to redo", async () => {
+    const res = await request(app).post("/api/redo");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: false });
+  });
+
+  it("undoing a rebalance-triggering create takes two undos: first the rebalance, then the create", async () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const long = newNodeInput({ type: "todo", parentId: root.id, sortKey: "a".repeat(51) });
+    repo.insert(long);
+
+    await request(app)
+      .post("/api/commands")
+      .send({
+        type: "CreateNode",
+        payload: {
+          parentId: root.id,
+          type: "todo",
+          title: "new todo",
+          notes: "",
+          sortKey: "b",
+          whenDate: null,
+          deadline: null,
+        },
+      });
+    const afterCreate = repo.getChildren(root.id);
+    expect(afterCreate).toHaveLength(2);
+    expect(afterCreate.every((c) => c.sortKey.length <= 50)).toBe(true);
+
+    await request(app).post("/api/undo"); // undoes the Rebalance only
+    const afterFirstUndo = repo.getChildren(root.id);
+    expect(afterFirstUndo).toHaveLength(2);
+    expect(afterFirstUndo.some((c) => c.sortKey.length > 50)).toBe(true);
+
+    await request(app).post("/api/undo"); // undoes the CreateNode
+    const afterSecondUndo = repo.getChildren(root.id);
+    expect(afterSecondUndo).toHaveLength(1);
+  });
+
+  it("EmptyTrash clears the undo stack, including earlier entries", async () => {
+    const node = newNodeInput({ type: "todo" });
+    repo.insert(node);
+    await request(app)
+      .post("/api/commands")
+      .send({ type: "TrashNode", payload: { nodeId: node.id } });
+    await request(app).post("/api/commands").send({ type: "EmptyTrash", payload: {} });
+
+    const res = await request(app).post("/api/undo");
+
+    expect(res.body).toEqual({ ok: false });
+  });
+});
+
 describe("static frontend serving", () => {
   function buildApp(staticDir: string): Express {
     const created = createTestRepo();
