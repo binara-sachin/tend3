@@ -147,3 +147,87 @@ describe("useKeyboardShortcuts", () => {
     expect(body.payload.parentId).toBe("proj-1");
   });
 });
+
+async function captureUndo(): Promise<void> {
+  return new Promise((resolve) => {
+    mswServer.use(
+      http.post("/api/undo", () => {
+        resolve();
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+  });
+}
+
+async function captureRedo(): Promise<void> {
+  return new Promise((resolve) => {
+    mswServer.use(
+      http.post("/api/redo", () => {
+        resolve();
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+  });
+}
+
+describe("useKeyboardShortcuts — undo/redo", () => {
+  it("Cmd+Z posts to /api/undo", async () => {
+    const queryClient = new QueryClient();
+    const calledPromise = captureUndo();
+    renderShortcuts(queryClient);
+
+    await userEvent.keyboard("{Meta>}z{/Meta}");
+
+    await calledPromise;
+  });
+
+  it("Cmd+Shift+Z posts to /api/redo", async () => {
+    const queryClient = new QueryClient();
+    const calledPromise = captureRedo();
+    renderShortcuts(queryClient);
+
+    await userEvent.keyboard("{Meta>}{Shift>}z{/Shift}{/Meta}");
+
+    await calledPromise;
+  });
+
+  it("Cmd+Z is ignored while a text input has focus", async () => {
+    const queryClient = new QueryClient();
+    let called = false;
+    mswServer.use(
+      http.post("/api/undo", () => {
+        called = true;
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    renderShortcuts(queryClient);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    await userEvent.keyboard("{Meta>}z{/Meta}");
+
+    expect(called).toBe(false);
+    document.body.removeChild(input);
+  });
+
+  it("Cmd+Z is ignored while a textarea has focus", async () => {
+    const queryClient = new QueryClient();
+    let called = false;
+    mswServer.use(
+      http.post("/api/undo", () => {
+        called = true;
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    renderShortcuts(queryClient);
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    textarea.focus();
+
+    await userEvent.keyboard("{Meta>}z{/Meta}");
+
+    expect(called).toBe(false);
+    document.body.removeChild(textarea);
+  });
+});

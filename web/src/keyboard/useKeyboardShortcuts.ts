@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { firstSortKey, sortKeyAfter } from "../../../lib/sortKey.js";
-import { useRunCommand } from "../queries/hooks.js";
+import { useRedo, useRunCommand, useUndo } from "../queries/hooks.js";
 import { useUiStore } from "../store/uiStore.js";
 
 interface CachedRow {
@@ -14,6 +14,8 @@ interface CachedRow {
 export function useKeyboardShortcuts(): void {
   const queryClient = useQueryClient();
   const runCommand = useRunCommand();
+  const undo = useUndo();
+  const redo = useRedo();
 
   useEffect(() => {
     function siblingsOf(parentId: string): CachedRow[] {
@@ -63,6 +65,19 @@ export function useKeyboardShortcuts(): void {
         return;
       }
 
+      if (e.metaKey && e.key.toLowerCase() === "z") {
+        const target = document.activeElement;
+        const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+        if (isTextField) return;
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo.mutate();
+        } else {
+          undo.mutate();
+        }
+        return;
+      }
+
       if (e.metaKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         useUiStore.getState().setSearchOpen(true);
@@ -89,5 +104,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [queryClient, runCommand]);
+  }, [queryClient, runCommand, undo, redo]);
 }
