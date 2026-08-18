@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNode, useRunCommand } from "../queries/hooks.js";
 
 export interface DetailPaneProps {
@@ -10,6 +10,10 @@ export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
   const { data: node } = useNode(nodeId);
   const runCommand = useRunCommand();
   const [notes, setNotes] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNotes(null);
+  }, [node?.notes]);
 
   if (!node) return null;
 

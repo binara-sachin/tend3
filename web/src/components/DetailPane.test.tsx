@@ -78,4 +78,22 @@ describe("DetailPane", () => {
       }),
     );
   });
+
+  it("resets its local notes override when the underlying node's notes change (e.g. after an undo)", async () => {
+    mswServer.use(http.get("/api/nodes/todo-1", () => HttpResponse.json(NODE)));
+    const user = userEvent.setup();
+
+    const { queryClient } = renderWithProviders(<DetailPane nodeId="todo-1" parentId="p1" />);
+    const notes = await screen.findByDisplayValue("2%");
+    await user.clear(notes);
+    await user.type(notes, "whole milk");
+    expect(await screen.findByDisplayValue("whole milk")).toBeInTheDocument();
+
+    mswServer.use(
+      http.get("/api/nodes/todo-1", () => HttpResponse.json({ ...NODE, notes: "reverted by undo" })),
+    );
+    await queryClient.invalidateQueries({ queryKey: ["node", "todo-1"] });
+
+    expect(await screen.findByDisplayValue("reverted by undo")).toBeInTheDocument();
+  });
 });
