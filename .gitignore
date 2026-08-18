@@ -4,3 +4,6 @@ node_modules/
 tend.db
 tend.db-*
 dist/
+.e2e-data/
+playwright-report/
+test-results/
