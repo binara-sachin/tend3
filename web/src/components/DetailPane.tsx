@@ -10,10 +10,20 @@ export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
   const { data: node } = useNode(nodeId);
   const runCommand = useRunCommand();
   const [notes, setNotes] = useState<string | null>(null);
+  const [whenDate, setWhenDate] = useState<string | null>(null);
+  const [deadline, setDeadline] = useState<string | null>(null);
 
   useEffect(() => {
     setNotes(null);
   }, [node?.notes]);
+
+  useEffect(() => {
+    setWhenDate(null);
+  }, [node?.whenDate]);
+
+  useEffect(() => {
+    setDeadline(null);
+  }, [node?.deadline]);
 
   if (!node) return null;
 
@@ -37,7 +47,8 @@ export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
         When
         <input
           type="date"
-          defaultValue={node.whenDate ?? ""}
+          value={whenDate ?? node.whenDate ?? ""}
+          onChange={(e) => setWhenDate(e.target.value)}
           onBlur={(e) =>
             runCommand.mutate({
               type: "SetWhen",
@@ -51,7 +62,8 @@ export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
         Deadline
         <input
           type="date"
-          defaultValue={node.deadline ?? ""}
+          value={deadline ?? node.deadline ?? ""}
+          onChange={(e) => setDeadline(e.target.value)}
           onBlur={(e) =>
             runCommand.mutate({
               type: "SetDeadline",

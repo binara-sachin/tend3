@@ -96,4 +96,35 @@ describe("DetailPane", () => {
 
     expect(await screen.findByDisplayValue("reverted by undo")).toBeInTheDocument();
   });
+
+  it("resets its local when/deadline overrides when the underlying node's dates change (e.g. after an undo)", async () => {
+    mswServer.use(http.get("/api/nodes/todo-1", () => HttpResponse.json(NODE)));
+    mswServer.use(http.post("/api/commands", () => HttpResponse.json(NODE)));
+    const user = userEvent.setup();
+
+    const { queryClient } = renderWithProviders(<DetailPane nodeId="todo-1" parentId="p1" />);
+    const when = await screen.findByLabelText(/when/i);
+    await user.clear(when);
+    await user.type(when, "2024-07-01");
+    expect(when).toHaveValue("2024-07-01");
+
+    const deadline = screen.getByLabelText(/deadline/i);
+    await user.clear(deadline);
+    await user.type(deadline, "2024-08-01");
+    expect(deadline).toHaveValue("2024-08-01");
+
+    // Distinct from both the original fixture (2024-06-01 / null) and what
+    // was just typed (2024-07-01 / 2024-08-01) — otherwise the query value
+    // "changing" back to what it already was wouldn't move the needle on
+    // the effect's dependency array at all (same string, same reference).
+    mswServer.use(
+      http.get("/api/nodes/todo-1", () =>
+        HttpResponse.json({ ...NODE, whenDate: "2024-09-01", deadline: "2024-10-01" }),
+      ),
+    );
+    await queryClient.invalidateQueries({ queryKey: ["node", "todo-1"] });
+
+    await waitFor(() => expect(screen.getByLabelText(/when/i)).toHaveValue("2024-09-01"));
+    expect(screen.getByLabelText(/deadline/i)).toHaveValue("2024-10-01");
+  });
 });
