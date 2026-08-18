@@ -3,6 +3,7 @@ import path from "node:path";
 import express, { type Express } from "express";
 import type { CommandContext } from "../commands/Command.js";
 import { executeCommand } from "../commands/executeCommand.js";
+import { Rebalance } from "../commands/Rebalance.js";
 import { getColumn } from "../queries/getColumn.js";
 import { getNode } from "../queries/getNode.js";
 import type { CommandLogRepository } from "../repo/CommandLogRepository.js";
@@ -13,6 +14,9 @@ export interface CreateAppOptions {
   /** Directory holding the built frontend (vite build's outDir). Defaults to dist/web. */
   staticDir?: string;
 }
+
+/** Spec 6.1: rebalance a parent's children once any sibling's sort_key grows past this length. */
+const REBALANCE_THRESHOLD = 50;
 
 export function createApp(
   repo: NodeRepository,
@@ -39,8 +43,22 @@ export function createApp(
 
   app.post("/api/commands", (req, res) => {
     try {
-      const { command, nodeId } = buildCommand(ctx, req.body.type, req.body.payload);
+      const { command, nodeId, affectedParentId } = buildCommand(
+        ctx,
+        req.body.type,
+        req.body.payload,
+      );
       executeCommand(command, ctx, commandLog);
+
+      if (affectedParentId !== null) {
+        const needsRebalance = repo
+          .getChildren(affectedParentId)
+          .some((child) => child.sortKey.length > REBALANCE_THRESHOLD);
+        if (needsRebalance) {
+          executeCommand(new Rebalance(affectedParentId), ctx, commandLog);
+        }
+      }
+
       res.json(getNode(repo, nodeId));
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });

@@ -1,5 +1,6 @@
 import type { Command, CommandContext } from "../commands/Command.js";
 import { CreateNode } from "../commands/CreateNode.js";
+import { MoveNode } from "../commands/MoveNode.js";
 import { RenameNode } from "../commands/RenameNode.js";
 import { SetCompleted } from "../commands/SetCompleted.js";
 import { SetDeadline } from "../commands/SetDeadline.js";
@@ -9,14 +10,16 @@ import { TrashNode } from "../commands/TrashNode.js";
 import type { NodeType } from "../repo/types.js";
 
 /**
- * Commands exposed over HTTP this phase. MoveNode (reparenting is drag-and-drop's
- * job), RestoreNode/EmptyTrash (Trash view), and HardDeleteNode (an inverse only,
- * never issued directly) are deliberately not reachable here.
+ * Commands exposed over HTTP this phase. RestoreNode/EmptyTrash (Trash view)
+ * and HardDeleteNode (an inverse only, never issued directly) are
+ * deliberately not reachable here.
  */
 export interface DispatchedCommand {
   command: Command;
   /** The node the caller should re-fetch after apply() to see the result. */
   nodeId: string;
+  /** Parent whose children may now need rebalancing (null: no check needed — e.g. root-level, or unaffected). */
+  affectedParentId: string | null;
 }
 
 export function buildCommand(ctx: CommandContext, type: string, payload: unknown): DispatchedCommand {
@@ -25,11 +28,13 @@ export function buildCommand(ctx: CommandContext, type: string, payload: unknown
   switch (type) {
     case "CreateNode": {
       const id = ctx.genId();
+      const parentId = (p.parentId as string | null) ?? null;
       return {
         nodeId: id,
+        affectedParentId: parentId,
         command: new CreateNode({
           id,
-          parentId: (p.parentId as string | null) ?? null,
+          parentId,
           type: p.type as NodeType,
           title: (p.title as string) ?? "",
           notes: (p.notes as string) ?? "",
@@ -39,30 +44,50 @@ export function buildCommand(ctx: CommandContext, type: string, payload: unknown
         }),
       };
     }
+    case "MoveNode": {
+      const newParentId = (p.newParentId as string | null) ?? null;
+      return {
+        nodeId: p.nodeId as string,
+        affectedParentId: newParentId,
+        command: new MoveNode(p.nodeId as string, newParentId, p.newSortKey as string),
+      };
+    }
     case "RenameNode":
-      return { nodeId: p.nodeId as string, command: new RenameNode(p.nodeId as string, p.title as string) };
+      return {
+        nodeId: p.nodeId as string,
+        affectedParentId: null,
+        command: new RenameNode(p.nodeId as string, p.title as string),
+      };
     case "SetNotes":
-      return { nodeId: p.nodeId as string, command: new SetNotes(p.nodeId as string, p.notes as string) };
+      return {
+        nodeId: p.nodeId as string,
+        affectedParentId: null,
+        command: new SetNotes(p.nodeId as string, p.notes as string),
+      };
     case "SetWhen":
       return {
         nodeId: p.nodeId as string,
+        affectedParentId: null,
         command: new SetWhen(p.nodeId as string, (p.whenDate as string | null) ?? null),
       };
     case "SetDeadline":
       return {
         nodeId: p.nodeId as string,
+        affectedParentId: null,
         command: new SetDeadline(p.nodeId as string, (p.deadline as string | null) ?? null),
       };
     case "SetCompleted":
       // completedAt is server time when completing, never client-supplied (spec 7.5).
       return {
         nodeId: p.nodeId as string,
+        affectedParentId: null,
         command: new SetCompleted(p.nodeId as string, p.completed ? ctx.now() : null),
       };
     case "TrashNode":
       // deletedAt is server time, never client-supplied (spec 7.5: server is the source of truth).
       return {
         nodeId: p.nodeId as string,
+        affectedParentId: null,
         command: new TrashNode(p.nodeId as string, ctx.now()),
       };
     default:

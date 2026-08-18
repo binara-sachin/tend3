@@ -126,15 +126,59 @@ describe("POST /api/commands", () => {
     expect(res.body.error).toMatch(/root/i);
   });
 
+  it("moves a node to a new parent", async () => {
+    const rootA = newNodeInput({ type: "project" });
+    const rootB = newNodeInput({ type: "project" });
+    repo.insert(rootA);
+    repo.insert(rootB);
+    const todo = newNodeInput({ type: "todo", parentId: rootA.id });
+    repo.insert(todo);
+
+    const res = await request(app).post("/api/commands").send({
+      type: "MoveNode",
+      payload: { nodeId: todo.id, newParentId: rootB.id, newSortKey: "a0" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(repo.getById(todo.id)?.parentId).toBe(rootB.id);
+  });
+
   it("rejects a command type not exposed over HTTP", async () => {
-    const root = newNodeInput({ type: "project" });
-    repo.insert(root);
+    const node = newNodeInput({ type: "project" });
+    repo.insert(node);
+    repo.updateDeletedAt(node.id, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z");
 
     const res = await request(app)
       .post("/api/commands")
-      .send({ type: "MoveNode", payload: { nodeId: root.id, newParentId: null, newSortKey: "a0" } });
+      .send({ type: "RestoreNode", payload: { nodeId: node.id } });
 
     expect(res.status).toBe(400);
+  });
+
+  it("rebalances a parent's children after an insert grows a sort_key past the threshold", async () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const long = newNodeInput({ type: "todo", parentId: root.id, sortKey: "a".repeat(51) });
+    repo.insert(long);
+
+    await request(app)
+      .post("/api/commands")
+      .send({
+        type: "CreateNode",
+        payload: {
+          parentId: root.id,
+          type: "todo",
+          title: "x",
+          notes: "",
+          sortKey: "b",
+          whenDate: null,
+          deadline: null,
+        },
+      });
+
+    const children = repo.getChildren(root.id);
+    expect(children.length).toBeGreaterThan(0);
+    expect(children.every((c) => c.sortKey.length <= 50)).toBe(true);
   });
 
   it("rejects an unknown command type", async () => {
