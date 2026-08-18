@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { useColumn, useRunCommand } from "../queries/hooks.js";
 import { SIDEBAR_DROP_IDS } from "../dnd/sidebarActions.js";
 import { useUiStore } from "../store/uiStore.js";
+import { LogbookIcon, TodayIcon, TrashIcon } from "../icons.js";
 
 function TodayItem() {
   const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.today });
+  const isSelected = useUiStore((s) => s.activeSmartList === "today");
   const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
   return (
     <li
@@ -13,17 +15,30 @@ function TodayItem() {
       data-droppable-id={SIDEBAR_DROP_IDS.today}
       role="button"
       tabIndex={0}
+      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
       onClick={() => setActiveSmartList("today")}
     >
+      <span className="sidebar-item-icon">
+        <TodayIcon size={15} />
+      </span>
       Today
     </li>
   );
 }
 
 function LogbookItem() {
+  const isSelected = useUiStore((s) => s.activeSmartList === "logbook");
   const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
   return (
-    <li role="button" tabIndex={0} onClick={() => setActiveSmartList("logbook")}>
+    <li
+      role="button"
+      tabIndex={0}
+      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
+      onClick={() => setActiveSmartList("logbook")}
+    >
+      <span className="sidebar-item-icon">
+        <LogbookIcon size={15} />
+      </span>
       Logbook
     </li>
   );
@@ -31,6 +46,7 @@ function LogbookItem() {
 
 function TrashItem() {
   const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.trash });
+  const isSelected = useUiStore((s) => s.activeSmartList === "trash");
   const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
   return (
     <li
@@ -38,8 +54,12 @@ function TrashItem() {
       data-droppable-id={SIDEBAR_DROP_IDS.trash}
       role="button"
       tabIndex={0}
+      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
       onClick={() => setActiveSmartList("trash")}
     >
+      <span className="sidebar-item-icon">
+        <TrashIcon size={15} />
+      </span>
       Trash
     </li>
   );
@@ -50,6 +70,8 @@ export function Sidebar() {
   const select = useUiStore((s) => s.select);
   const setActiveSelection = useUiStore((s) => s.setActiveSelection);
   const setFocusedColumnParentId = useUiStore((s) => s.setFocusedColumnParentId);
+  const activeSmartList = useUiStore((s) => s.activeSmartList);
+  const openRootId = useUiStore((s) => s.openPath[0]?.id);
 
   // The sidebar renders depth 0 of the tree (spec 1) but is never a
   // Column, so nothing else ever gives Cmd+N a root-level target — this is
@@ -60,19 +82,21 @@ export function Sidebar() {
   }, [setFocusedColumnParentId]);
 
   return (
-    <nav>
-      <ul>
+    <nav className="sidebar">
+      <ul className="list-reset">
         <TodayItem />
         <LogbookItem />
         <TrashItem />
       </ul>
-      <ul>
+      <div className="sidebar-divider" />
+      <ul className="list-reset">
         {(rows ?? []).map((row) => (
           <SidebarProjectRow
             key={row.id}
             id={row.id}
             title={row.title}
             isSystem={row.isSystem}
+            isSelected={activeSmartList === null && openRootId === row.id}
             onSelect={() => {
               setActiveSelection({ parentId: "root", nodeId: row.id, type: "project" });
               select(0, { id: row.id, type: "project" });
@@ -88,10 +112,11 @@ interface SidebarProjectRowProps {
   id: string;
   title: string;
   isSystem: boolean;
+  isSelected: boolean;
   onSelect(): void;
 }
 
-function SidebarProjectRow({ id, title, isSystem, onSelect }: SidebarProjectRowProps) {
+function SidebarProjectRow({ id, title, isSystem, isSelected, onSelect }: SidebarProjectRowProps) {
   // Inbox is a real, is_system project row — spec 6's "drop on Inbox reparents
   // there" is wired only onto it, not onto ordinary root-level projects.
   const { setNodeRef } = useDroppable({
@@ -107,6 +132,7 @@ function SidebarProjectRow({ id, title, isSystem, onSelect }: SidebarProjectRowP
         {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         <input
           autoFocus
+          className="sidebar-rename-input"
           defaultValue={title}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -130,6 +156,7 @@ function SidebarProjectRow({ id, title, isSystem, onSelect }: SidebarProjectRowP
       <button
         ref={isSystem ? setNodeRef : undefined}
         type="button"
+        className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
         data-droppable-id={isSystem ? SIDEBAR_DROP_IDS.inbox : undefined}
         onClick={onSelect}
         onKeyDown={(e) => {

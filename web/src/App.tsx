@@ -19,7 +19,7 @@ export function App() {
   return (
     <DragProvider>
       <SearchPalette />
-      <div style={{ display: "flex" }}>
+      <div className="app-shell">
         <Sidebar />
         {activeSmartList === "today" && <TodayView />}
         {activeSmartList === "logbook" && <LogbookView />}
