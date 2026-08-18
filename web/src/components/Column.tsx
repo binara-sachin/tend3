@@ -1,9 +1,97 @@
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
 import { useColumn, useRunCommand } from "../queries/hooks.js";
 import { useUiStore } from "../store/uiStore.js";
+import type { ColumnRow } from "../../../queries/getColumn.js";
 
 function columnKey(parentId: string | null): string {
   return parentId ?? "root";
+}
+
+interface RowProps {
+  row: ColumnRow;
+  parentKey: string;
+  isRenaming: boolean;
+  onStartRename(): void;
+  onSubmitRename(title: string): void;
+  onCancelRename(): void;
+  onSelect(): void;
+}
+
+function Row({
+  row,
+  parentKey,
+  isRenaming,
+  onStartRename,
+  onSubmitRename,
+  onCancelRename,
+  onSelect,
+}: RowProps) {
+  const { setNodeRef, attributes, listeners, transform, transition } = useSortable({
+    id: row.id,
+    data: { parentId: parentKey, sortKey: row.sortKey, type: row.type },
+  });
+
+  if (isRenaming) {
+    return (
+      // eslint-disable-next-line jsx-a11y/no-autofocus
+      <input
+        autoFocus
+        defaultValue={row.title}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSubmitRename(e.currentTarget.value);
+          else if (e.key === "Escape") onCancelRename();
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, display: "flex" }}
+    >
+      <button type="button" aria-label={`Drag ${row.title}`} {...attributes} {...listeners}>
+        ⠿
+      </button>
+      <div
+        role="button"
+        tabIndex={0}
+        data-row="true"
+        style={{ minHeight: "1.4em" }}
+        onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            onStartRename();
+            return;
+          }
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            const list = e.currentTarget.closest("ul");
+            if (!list) return;
+            const items = Array.from(
+              list.querySelectorAll(":scope > li [data-row]"),
+            ) as HTMLElement[];
+            const index = items.indexOf(e.currentTarget);
+            const nextIndex = e.key === "ArrowDown" ? index + 1 : index - 1;
+            items[nextIndex]?.focus();
+            return;
+          }
+          if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            const column = e.currentTarget.closest("[data-depth]");
+            const targetColumn =
+              e.key === "ArrowRight" ? column?.nextElementSibling : column?.previousElementSibling;
+            const targetRow = targetColumn?.querySelector("[data-row]") as HTMLElement | null;
+            targetRow?.focus();
+          }
+        }}
+      >
+        {row.title}
+      </div>
+    </div>
+  );
 }
 
 interface ColumnBodyProps {
@@ -23,6 +111,7 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
   if (!rows) return null;
 
   const visibleRows = rows.filter((row) => showCompleted || row.completedAt === null);
+  const parentKey = columnKey(parentId);
 
   function toggleHeading(id: string) {
     setExpandedHeadings((prev) => {
@@ -37,74 +126,39 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
     runCommand.mutate({
       type: "RenameNode",
       payload: { nodeId, title },
-      parentId: columnKey(parentId),
+      parentId: parentKey,
     });
     setRenamingId(null);
   }
 
   return (
-    <ul>
-      {visibleRows.map((row) => (
-        <li key={row.id}>
-          {renamingId === row.id ? (
-            // eslint-disable-next-line jsx-a11y/no-autofocus
-            <input
-              autoFocus
-              defaultValue={row.title}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submitRename(row.id, e.currentTarget.value);
-                else if (e.key === "Escape") setRenamingId(null);
-              }}
-            />
-          ) : (
-            <div
-              role="button"
-              tabIndex={0}
-              style={{ minHeight: "1.4em" }}
-              onClick={() => {
-                setActiveSelection({ parentId: columnKey(parentId), nodeId: row.id, type: row.type });
+    <SortableContext items={visibleRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+      <ul>
+        {visibleRows.map((row) => (
+          <li key={row.id}>
+            <Row
+              row={row}
+              parentKey={parentKey}
+              isRenaming={renamingId === row.id}
+              onStartRename={() => setRenamingId(row.id)}
+              onSubmitRename={(title) => submitRename(row.id, title)}
+              onCancelRename={() => setRenamingId(null)}
+              onSelect={() => {
+                setActiveSelection({ parentId: parentKey, nodeId: row.id, type: row.type });
                 if (row.type === "heading") {
                   toggleHeading(row.id);
                 } else {
                   select(depth, { id: row.id, type: row.type });
                 }
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  setRenamingId(row.id);
-                  return;
-                }
-                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                  e.preventDefault();
-                  const list = e.currentTarget.closest("ul");
-                  if (!list) return;
-                  const items = Array.from(
-                    list.querySelectorAll(':scope > li > [role="button"]'),
-                  ) as HTMLElement[];
-                  const index = items.indexOf(e.currentTarget);
-                  const nextIndex = e.key === "ArrowDown" ? index + 1 : index - 1;
-                  items[nextIndex]?.focus();
-                  return;
-                }
-                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                  e.preventDefault();
-                  const column = e.currentTarget.closest("[data-depth]");
-                  const targetColumn =
-                    e.key === "ArrowRight" ? column?.nextElementSibling : column?.previousElementSibling;
-                  const targetRow = targetColumn?.querySelector('[role="button"]') as HTMLElement | null;
-                  targetRow?.focus();
-                }
-              }}
-            >
-              {row.title}
-            </div>
-          )}
-          {row.type === "heading" && expandedHeadings.has(row.id) && (
-            <ColumnBody parentId={row.id} depth={depth} />
-          )}
-        </li>
-      ))}
-    </ul>
+            />
+            {row.type === "heading" && expandedHeadings.has(row.id) && (
+              <ColumnBody parentId={row.id} depth={depth} />
+            )}
+          </li>
+        ))}
+      </ul>
+    </SortableContext>
   );
 }
 

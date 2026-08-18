@@ -26,12 +26,14 @@ describe("getColumn", () => {
     expect(rows[0]).toMatchObject({
       id: sub.id,
       type: "project",
+      sortKey: "a",
       isComplete: false, // empty subtree: no live descendant, second clause of spec 3.4 fails
       openDescendantCount: 0,
     });
     expect(rows[1]).toMatchObject({
       id: todo.id,
       type: "todo",
+      sortKey: "b",
       isComplete: null,
       completedAt: null,
       openDescendantCount: 0,

@@ -5,6 +5,7 @@ export interface ColumnRow {
   id: string;
   type: NodeType;
   title: string;
+  sortKey: string;
   isSystem: boolean;
   whenDate: string | null;
   deadline: string | null;
@@ -21,6 +22,7 @@ export function getColumn(repo: NodeRepository, parentId: string | null): Column
       id: n.id,
       type: n.type,
       title: n.title,
+      sortKey: n.sortKey,
       isSystem: n.isSystem,
       whenDate: n.whenDate,
       deadline: n.deadline,

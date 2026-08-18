@@ -122,4 +122,22 @@ describe("ColumnStack", () => {
     await user.keyboard("{ArrowLeft}");
     expect(groceries).toHaveFocus();
   });
+
+  it("renders a focusable drag handle per row, wired for dnd-kit's keyboard sensor", async () => {
+    // The actual pick-up/move/drop interaction needs real element layout to
+    // resolve "which item is next" — jsdom reports every element as a
+    // zero-size rect, so dnd-kit's keyboard sensor can't be exercised
+    // meaningfully here (see web/src/dnd/resolveMove.ts's comment). The sort
+    // key math that interaction depends on is covered directly by
+    // web/src/dnd/resolveMove.test.ts; the full interaction is verified
+    // against a real browser (Phase 3 progress notes).
+    const todoA = row({ id: "todo-a", type: "todo", title: "Buy milk", isComplete: null });
+    mswServer.use(http.get("/api/columns/p1", () => HttpResponse.json([todoA])));
+    useUiStore.getState().select(0, { id: "p1", type: "project" });
+
+    renderWithProviders(<ColumnStack />);
+
+    const handle = await screen.findByLabelText("Drag Buy milk");
+    expect(handle).toHaveAttribute("tabindex", "0");
+  });
 });
