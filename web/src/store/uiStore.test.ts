@@ -73,3 +73,28 @@ describe("setFocusedColumnParentId", () => {
     expect(useUiStore.getState().focusedColumnParentId).toBe("p1");
   });
 });
+
+describe("setActiveSmartList", () => {
+  it("records which smart list (Today/Logbook/Trash) is active", () => {
+    useUiStore.getState().setActiveSmartList("today");
+
+    expect(useUiStore.getState().activeSmartList).toBe("today");
+  });
+
+  it("clears back to null", () => {
+    useUiStore.getState().setActiveSmartList("trash");
+    useUiStore.getState().setActiveSmartList(null);
+
+    expect(useUiStore.getState().activeSmartList).toBeNull();
+  });
+});
+
+describe("select", () => {
+  it("clears the active smart list — selecting a project returns to the column stack", () => {
+    useUiStore.getState().setActiveSmartList("today");
+
+    useUiStore.getState().select(0, { id: "a", type: "project" });
+
+    expect(useUiStore.getState().activeSmartList).toBeNull();
+  });
+});

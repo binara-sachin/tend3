@@ -49,14 +49,20 @@ describe("Sidebar", () => {
     expect(useUiStore.getState().openPath).toEqual([{ id: "area-1", type: "project" }]);
   });
 
-  it("renders Today, Logbook, and Trash as inert placeholders", async () => {
+  it("clicking Today, Logbook, or Trash sets the active smart list instead of the open path", async () => {
     mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([])));
     const user = userEvent.setup();
 
     renderWithProviders(<Sidebar />);
+
     await user.click(await screen.findByText("Today"));
+    expect(useUiStore.getState().activeSmartList).toBe("today");
+
     await user.click(screen.getByText("Logbook"));
+    expect(useUiStore.getState().activeSmartList).toBe("logbook");
+
     await user.click(screen.getByText("Trash"));
+    expect(useUiStore.getState().activeSmartList).toBe("trash");
 
     expect(useUiStore.getState().openPath).toEqual([]);
   });

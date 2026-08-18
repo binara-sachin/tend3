@@ -12,6 +12,8 @@ export interface ActiveSelection {
   type: "project" | "heading" | "todo";
 }
 
+export type SmartList = "today" | "logbook" | "trash";
+
 export interface UiState {
   openPath: OpenPathEntry[];
   columnWidths: Record<number, number>;
@@ -19,11 +21,14 @@ export interface UiState {
   activeSelection: ActiveSelection | null;
   /** Which column currently has focus, independent of any row being selected within it — Cmd+N needs a target parent even in an empty column. */
   focusedColumnParentId: string | null;
+  /** Which sidebar smart list (if any) is showing instead of the column stack. */
+  activeSmartList: SmartList | null;
   select(depth: number, entry: OpenPathEntry): void;
   setColumnWidth(index: number, width: number): void;
   toggleShowCompleted(parentId: string): void;
   setActiveSelection(selection: ActiveSelection): void;
   setFocusedColumnParentId(parentId: string): void;
+  setActiveSmartList(list: SmartList | null): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -34,9 +39,10 @@ export const useUiStore = create<UiState>()(
       showCompleted: {},
       activeSelection: null,
       focusedColumnParentId: null,
+      activeSmartList: null,
 
       select(depth, entry) {
-        set({ openPath: [...get().openPath.slice(0, depth), entry] });
+        set({ openPath: [...get().openPath.slice(0, depth), entry], activeSmartList: null });
       },
 
       setColumnWidth(index, width) {
@@ -54,6 +60,10 @@ export const useUiStore = create<UiState>()(
 
       setFocusedColumnParentId(parentId) {
         set({ focusedColumnParentId: parentId });
+      },
+
+      setActiveSmartList(list) {
+        set({ activeSmartList: list });
       },
     }),
     { name: "tend-ui" },

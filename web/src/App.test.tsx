@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import userEvent from "@testing-library/user-event";
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import "./test/setup.js";
@@ -69,5 +69,38 @@ describe("App", () => {
     await user.click(await screen.findByText("Buy milk"));
 
     expect(await screen.findByDisplayValue("get 2%")).toBeInTheDocument();
+  });
+
+  it("clicking Today in the sidebar shows the Today view instead of the column stack", async () => {
+    mswServer.use(
+      http.get("/api/columns/root", () => HttpResponse.json([row({ id: "p1", title: "Work" })])),
+      http.get("/api/today", () =>
+        HttpResponse.json([{ projectId: "p1", projectTitle: "Work", rows: [{ id: "todo-1", title: "Buy milk" }] }]),
+      ),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByText("Today"));
+
+    expect(await screen.findByText("Buy milk")).toBeInTheDocument();
+  });
+
+  it("selecting a project afterward switches back to the column stack", async () => {
+    mswServer.use(
+      http.get("/api/columns/root", () => HttpResponse.json([row({ id: "p1", title: "Work" })])),
+      http.get("/api/columns/p1", () => HttpResponse.json([])),
+      http.get("/api/today", () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByText("Today"));
+    await screen.findByTestId("today-view");
+
+    await user.click(screen.getByText("Work"));
+
+    expect(await screen.findByRole("button", { name: "Show completed" })).toBeInTheDocument();
+    expect(screen.queryByTestId("today-view")).not.toBeInTheDocument();
   });
 });

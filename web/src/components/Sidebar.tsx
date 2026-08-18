@@ -5,17 +5,40 @@ import { useUiStore } from "../store/uiStore.js";
 
 function TodayItem() {
   const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.today });
+  const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
   return (
-    <li ref={setNodeRef} data-droppable-id={SIDEBAR_DROP_IDS.today}>
+    <li
+      ref={setNodeRef}
+      data-droppable-id={SIDEBAR_DROP_IDS.today}
+      role="button"
+      tabIndex={0}
+      onClick={() => setActiveSmartList("today")}
+    >
       Today
+    </li>
+  );
+}
+
+function LogbookItem() {
+  const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
+  return (
+    <li role="button" tabIndex={0} onClick={() => setActiveSmartList("logbook")}>
+      Logbook
     </li>
   );
 }
 
 function TrashItem() {
   const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.trash });
+  const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
   return (
-    <li ref={setNodeRef} data-droppable-id={SIDEBAR_DROP_IDS.trash}>
+    <li
+      ref={setNodeRef}
+      data-droppable-id={SIDEBAR_DROP_IDS.trash}
+      role="button"
+      tabIndex={0}
+      onClick={() => setActiveSmartList("trash")}
+    >
       Trash
     </li>
   );
@@ -29,7 +52,7 @@ export function Sidebar() {
     <nav>
       <ul>
         <TodayItem />
-        <li>Logbook</li>
+        <LogbookItem />
         <TrashItem />
       </ul>
       <ul>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getColumn, getNode, runCommand } from "../api/client.js";
+import { getColumn, getLogbook, getNode, getToday, getTrash, runCommand } from "../api/client.js";
 import { useUiStore } from "../store/uiStore.js";
 
 export function useColumn(parentId: string | null) {
@@ -17,11 +17,23 @@ export function useNode(id: string | null) {
   });
 }
 
+export function useToday() {
+  return useQuery({ queryKey: ["today"], queryFn: () => getToday() });
+}
+
+export function useLogbook() {
+  return useQuery({ queryKey: ["logbook"], queryFn: () => getLogbook() });
+}
+
+export function useTrash() {
+  return useQuery({ queryKey: ["trash"], queryFn: () => getTrash() });
+}
+
 export interface RunCommandVars {
   type: string;
   payload: object;
-  /** The parentId of the column the mutated node lives in, for cache invalidation. */
-  parentId: string;
+  /** The parentId of the column the mutated node lives in, for cache invalidation. Omit for commands with no single column (e.g. Trash actions). */
+  parentId?: string;
 }
 
 export function useRunCommand() {
@@ -30,10 +42,15 @@ export function useRunCommand() {
   return useMutation({
     mutationFn: (vars: RunCommandVars) => runCommand(vars.type, vars.payload),
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["columns", vars.parentId] });
+      if (vars.parentId !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ["columns", vars.parentId] });
+      }
       for (const entry of useUiStore.getState().openPath) {
         queryClient.invalidateQueries({ queryKey: ["columns", entry.id] });
       }
+      queryClient.invalidateQueries({ queryKey: ["today"] });
+      queryClient.invalidateQueries({ queryKey: ["logbook"] });
+      queryClient.invalidateQueries({ queryKey: ["trash"] });
     },
   });
 }
