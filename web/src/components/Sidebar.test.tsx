@@ -60,4 +60,16 @@ describe("Sidebar", () => {
 
     expect(useUiStore.getState().openPath).toEqual([]);
   });
+
+  it("registers Today, Inbox, and Trash as drop targets, but not Logbook (spec 6: action targets, not move targets)", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([INBOX, AREA])));
+
+    renderWithProviders(<Sidebar />);
+    await screen.findByText("Inbox");
+
+    expect(document.querySelector('[data-droppable-id="sidebar-today"]')).not.toBeNull();
+    expect(document.querySelector('[data-droppable-id="sidebar-inbox"]')).not.toBeNull();
+    expect(document.querySelector('[data-droppable-id="sidebar-trash"]')).not.toBeNull();
+    expect(document.querySelector('[data-droppable-id="sidebar-logbook"]')).toBeNull();
+  });
 });

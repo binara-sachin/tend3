@@ -1,5 +1,25 @@
+import { useDroppable } from "@dnd-kit/core";
 import { useColumn } from "../queries/hooks.js";
+import { SIDEBAR_DROP_IDS } from "../dnd/sidebarActions.js";
 import { useUiStore } from "../store/uiStore.js";
+
+function TodayItem() {
+  const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.today });
+  return (
+    <li ref={setNodeRef} data-droppable-id={SIDEBAR_DROP_IDS.today}>
+      Today
+    </li>
+  );
+}
+
+function TrashItem() {
+  const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.trash });
+  return (
+    <li ref={setNodeRef} data-droppable-id={SIDEBAR_DROP_IDS.trash}>
+      Trash
+    </li>
+  );
+}
 
 export function Sidebar() {
   const { data: rows } = useColumn(null);
@@ -8,19 +28,44 @@ export function Sidebar() {
   return (
     <nav>
       <ul>
-        <li>Today</li>
+        <TodayItem />
         <li>Logbook</li>
-        <li>Trash</li>
+        <TrashItem />
       </ul>
       <ul>
         {(rows ?? []).map((row) => (
-          <li key={row.id}>
-            <button type="button" onClick={() => select(0, { id: row.id, type: "project" })}>
-              {row.title}
-            </button>
-          </li>
+          <SidebarProjectRow key={row.id} id={row.id} title={row.title} isSystem={row.isSystem} onSelect={() => select(0, { id: row.id, type: "project" })} />
         ))}
       </ul>
     </nav>
+  );
+}
+
+interface SidebarProjectRowProps {
+  id: string;
+  title: string;
+  isSystem: boolean;
+  onSelect(): void;
+}
+
+function SidebarProjectRow({ id, title, isSystem, onSelect }: SidebarProjectRowProps) {
+  // Inbox is a real, is_system project row — spec 6's "drop on Inbox reparents
+  // there" is wired only onto it, not onto ordinary root-level projects.
+  const { setNodeRef } = useDroppable({
+    id: isSystem ? SIDEBAR_DROP_IDS.inbox : `sidebar-noop-${id}`,
+    disabled: !isSystem,
+  });
+
+  return (
+    <li>
+      <button
+        ref={isSystem ? setNodeRef : undefined}
+        type="button"
+        data-droppable-id={isSystem ? SIDEBAR_DROP_IDS.inbox : undefined}
+        onClick={onSelect}
+      >
+        {title}
+      </button>
+    </li>
   );
 }
