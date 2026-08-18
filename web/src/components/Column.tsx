@@ -44,10 +44,11 @@ function Row({
   onCancelRename,
   onSelect,
 }: RowProps) {
-  const { setNodeRef, attributes, listeners, transform, transition } = useSortable({
-    id: row.id,
-    data: { parentId: parentKey, sortKey: row.sortKey, type: row.type },
-  });
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver } =
+    useSortable({
+      id: row.id,
+      data: { parentId: parentKey, sortKey: row.sortKey, type: row.type, title: row.title },
+    });
   // Only project rows are valid "reparent into" whole-row targets; the ref
   // is simply never attached for other row types (see the JSX below), so
   // dnd-kit never registers/measures a droppable for them.
@@ -74,11 +75,13 @@ function Row({
   const badge = row.type === "todo" ? formatColumnDueBadge(row.whenDate, todayDateString(new Date())) : null;
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`row${isNested && row.type !== "heading" ? " row--nested" : ""}`}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-    >
+    <>
+      {isOver && !isDragging && <div className="drop-indicator" />}
+      <div
+        ref={setNodeRef}
+        className={`row${isNested && row.type !== "heading" ? " row--nested" : ""}${isDragging ? " row--dragging" : ""}`}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+      >
       <button
         type="button"
         className="row-drag-handle"
@@ -151,7 +154,8 @@ function Row({
           </span>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

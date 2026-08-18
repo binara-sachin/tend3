@@ -28,7 +28,9 @@ test("Logbook shows a completed todo under today's date", async ({ page, request
   await page.getByText("Logbook", { exact: true }).click();
   await page.getByTestId("logbook-view").waitFor();
 
-  await expect(page.getByRole("heading", { name: today() })).toBeVisible();
+  // Today's group renders as "Today", not the raw ISO date — see
+  // web/src/format/logbookDay.ts.
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await expect(page.getByText(todoTitle)).toBeVisible();
 });
 

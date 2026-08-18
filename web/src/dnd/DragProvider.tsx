@@ -1,5 +1,6 @@
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -8,13 +9,15 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { INBOX_ID } from "../../../db/constants.js";
 import type { ColumnRow } from "../../../queries/getColumn.js";
 import { useRunCommand } from "../queries/hooks.js";
 import { queryClient } from "../queries/queryClient.js";
+import { CircleIcon, FolderIcon } from "../icons.js";
 import {
   resolveCrossColumnInsertion,
   resolveInsertSide,
@@ -42,6 +45,7 @@ interface SortableItemData {
   parentId: string;
   sortKey: string;
   type: "project" | "heading" | "todo";
+  title: string;
 }
 
 /**
@@ -51,13 +55,19 @@ interface SortableItemData {
  */
 export function DragProvider({ children }: { children: ReactNode }) {
   const runCommand = useRunCommand();
+  const [activeItem, setActiveItem] = useState<SortableItemData | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveItem((event.active.data.current as SortableItemData | undefined) ?? null);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveItem(null);
     const { active, over } = event;
     if (!over) return;
 
@@ -134,8 +144,24 @@ export function DragProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetectionStrategy}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveItem(null)}
+    >
       {children}
+      <DragOverlay>
+        {activeItem && (
+          <div className="drag-overlay-row">
+            <span className="row-icon">
+              {activeItem.type === "project" ? <FolderIcon size={15} /> : <CircleIcon size={16} />}
+            </span>
+            <span className="row-title">{activeItem.title}</span>
+          </div>
+        )}
+      </DragOverlay>
     </DndContext>
   );
 }

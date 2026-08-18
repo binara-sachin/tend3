@@ -13,13 +13,16 @@ test("Cmd+Z / Cmd+Shift+Z undo and redo a rename", async ({ page, request }) => 
   const renameInput = page.locator('input:not([type="date"])');
   await renameInput.fill("Renamed via E2E");
   await renameInput.press("Enter");
-  await expect(page.getByText("Renamed via E2E")).toBeVisible();
+  // The row and the (now-open) detail pane both show the title — scope to
+  // the row specifically so the query stays unambiguous.
+  const row = page.getByRole("button", { name: "Renamed via E2E", exact: true });
+  await expect(row).toBeVisible();
 
   await page.keyboard.press("Meta+z");
-  await expect(page.getByText(originalTitle)).toBeVisible();
+  await expect(page.getByRole("button", { name: originalTitle, exact: true })).toBeVisible();
 
   await page.keyboard.press("Meta+Shift+z");
-  await expect(page.getByText("Renamed via E2E")).toBeVisible();
+  await expect(row).toBeVisible();
 });
 
 test("Cmd+Z reverts a notes edit visible in an already-open detail pane", async ({

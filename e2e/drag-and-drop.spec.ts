@@ -45,7 +45,7 @@ test("reordering within a column via the keyboard sensor persists across a reloa
   expect(reordered.indexOf(titleA)).toBeGreaterThan(0); // no longer first
 
   await page.reload();
-  await page.getByText(project.title).click();
+  await page.getByRole("button", { name: project.title, exact: true }).click();
   const afterReload = await rowTitles(page);
   expect(afterReload).toEqual(reordered); // the reorder round-tripped the server
 });
@@ -72,7 +72,7 @@ test("reparenting onto a project row via the keyboard sensor moves the todo into
 
   await page.waitForTimeout(300);
   await page.reload();
-  await page.getByText(root.title).click();
+  await page.getByRole("button", { name: root.title, exact: true }).click();
   await page.getByText(target.title).click();
 
   await expect(page.getByText(todoTitle)).toBeVisible();

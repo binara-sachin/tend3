@@ -1,7 +1,14 @@
-/* Nocturne design tokens — copied from docs/ui-design's exported design system
-   (docs/ui-design/extracted/_ds/nocturne-*/styles.css). Keep in sync with that
-   source; do not hand-edit values without checking it first. */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+/* Nocturne design tokens — copied from docs/ui-design's exported design
+   system (see docs/ui-design/extracted/_ds, the nocturne subfolder's
+   styles.css). Keep in sync with that source; do not hand-edit values
+   without checking it first.
+
+   Inter is loaded via a <link> in index.html, not an @import here — an
+   @import of a remote stylesheet gets resolved (fetched) at BUILD time by
+   postcss-import, so it breaks the build anywhere that fetch is blocked
+   (e.g. this sandbox's network policy). A <link> is fetched by the browser
+   at runtime instead, which degrades gracefully to the system-ui fallback
+   below if it's ever unreachable. */
 
 :root {
   --color-bg: #161826;
