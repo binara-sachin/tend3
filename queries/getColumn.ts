@@ -12,6 +12,7 @@ export interface ColumnRow {
   completedAt: string | null;
   isComplete: boolean | null;
   openDescendantCount: number;
+  hasNotes: boolean;
 }
 
 export function toColumnRow(repo: NodeRepository, n: NodeRow): ColumnRow {
@@ -27,6 +28,7 @@ export function toColumnRow(repo: NodeRepository, n: NodeRow): ColumnRow {
     isComplete:
       n.type === "project" ? n.openDescendantCount === 0 && repo.hasLiveDescendant(n.id) : null,
     openDescendantCount: n.openDescendantCount,
+    hasNotes: n.notes.trim().length > 0,
   };
 }
 

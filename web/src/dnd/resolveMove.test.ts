@@ -20,6 +20,7 @@ function row(id: string, sortKey: string): ColumnRow {
     completedAt: null,
     isComplete: null,
     openDescendantCount: 0,
+    hasNotes: false,
   };
 }
 

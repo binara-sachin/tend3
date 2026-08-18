@@ -64,6 +64,23 @@ describe("getColumn", () => {
     expect(ids).toContain(INBOX_ID);
   });
 
+  it("reports hasNotes true only when notes is non-blank", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const withNotes = newNodeInput({ type: "todo", parentId: root.id, sortKey: "a", notes: "hi" });
+    repo.insert(withNotes);
+    const blank = newNodeInput({ type: "todo", parentId: root.id, sortKey: "b", notes: "   " });
+    repo.insert(blank);
+    const empty = newNodeInput({ type: "todo", parentId: root.id, sortKey: "c" });
+    repo.insert(empty);
+
+    const rows = getColumn(repo, root.id);
+
+    expect(rows.find((r) => r.id === withNotes.id)?.hasNotes).toBe(true);
+    expect(rows.find((r) => r.id === blank.id)?.hasNotes).toBe(false);
+    expect(rows.find((r) => r.id === empty.id)?.hasNotes).toBe(false);
+  });
+
   it("excludes trashed children", () => {
     const root = newNodeInput({ type: "project" });
     repo.insert(root);
