@@ -23,12 +23,15 @@ export interface UiState {
   focusedColumnParentId: string | null;
   /** Which sidebar smart list (if any) is showing instead of the column stack. */
   activeSmartList: SmartList | null;
+  /** Whether the ⌘K search palette is open. */
+  isSearchOpen: boolean;
   select(depth: number, entry: OpenPathEntry): void;
   setColumnWidth(index: number, width: number): void;
   toggleShowCompleted(parentId: string): void;
   setActiveSelection(selection: ActiveSelection): void;
   setFocusedColumnParentId(parentId: string): void;
   setActiveSmartList(list: SmartList | null): void;
+  setSearchOpen(open: boolean): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -40,6 +43,7 @@ export const useUiStore = create<UiState>()(
       activeSelection: null,
       focusedColumnParentId: null,
       activeSmartList: null,
+      isSearchOpen: false,
 
       select(depth, entry) {
         set({ openPath: [...get().openPath.slice(0, depth), entry], activeSmartList: null });
@@ -64,6 +68,10 @@ export const useUiStore = create<UiState>()(
 
       setActiveSmartList(list) {
         set({ activeSmartList: list });
+      },
+
+      setSearchOpen(open) {
+        set({ isSearchOpen: open });
       },
     }),
     { name: "tend-ui" },

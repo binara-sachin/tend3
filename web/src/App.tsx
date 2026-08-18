@@ -1,6 +1,7 @@
 import { ColumnStack } from "./components/ColumnStack.js";
 import { DetailPane } from "./components/DetailPane.js";
 import { LogbookView } from "./components/LogbookView.js";
+import { SearchPalette } from "./components/SearchPalette.js";
 import { Sidebar } from "./components/Sidebar.js";
 import { TodayView } from "./components/TodayView.js";
 import { TrashView } from "./components/TrashView.js";
@@ -17,6 +18,7 @@ export function App() {
 
   return (
     <DragProvider>
+      <SearchPalette />
       <div style={{ display: "flex" }}>
         <Sidebar />
         {activeSmartList === "today" && <TodayView />}

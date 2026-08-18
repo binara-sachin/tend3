@@ -125,6 +125,15 @@ describe("useKeyboardShortcuts", () => {
     expect(body.payload.type).toBe("todo");
   });
 
+  it("Cmd+K opens the search palette", async () => {
+    const queryClient = new QueryClient();
+    renderShortcuts(queryClient);
+
+    await userEvent.keyboard("{Meta>}k{/Meta}");
+
+    expect(useUiStore.getState().isSearchOpen).toBe(true);
+  });
+
   it("Cmd+Shift+N creates a child inside the selected project", async () => {
     const queryClient = new QueryClient();
     useUiStore.getState().setActiveSelection({ parentId: "root", nodeId: "proj-1", type: "project" });

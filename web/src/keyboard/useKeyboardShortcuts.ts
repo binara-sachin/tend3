@@ -63,6 +63,12 @@ export function useKeyboardShortcuts(): void {
         return;
       }
 
+      if (e.metaKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        useUiStore.getState().setSearchOpen(true);
+        return;
+      }
+
       if (e.metaKey && e.key.toLowerCase() === "n") {
         if (e.shiftKey) {
           // Child inside the selected project — needs an actual project selected.

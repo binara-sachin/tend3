@@ -98,3 +98,13 @@ describe("select", () => {
     expect(useUiStore.getState().activeSmartList).toBeNull();
   });
 });
+
+describe("setSearchOpen", () => {
+  it("opens and closes the search palette", () => {
+    useUiStore.getState().setSearchOpen(true);
+    expect(useUiStore.getState().isSearchOpen).toBe(true);
+
+    useUiStore.getState().setSearchOpen(false);
+    expect(useUiStore.getState().isSearchOpen).toBe(false);
+  });
+});
