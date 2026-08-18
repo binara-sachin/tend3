@@ -27,8 +27,8 @@ describe("getSearchResults", () => {
       type: "todo",
       title: "Buy milk",
       path: [
-        { id: heading.id, type: "heading" },
-        { id: project.id, type: "project" },
+        { id: heading.id, type: "heading", title: "Dairy" },
+        { id: project.id, type: "project", title: "Groceries" },
       ],
     });
   });

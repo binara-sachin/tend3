@@ -8,7 +8,7 @@ export interface SearchResult {
   title: string;
   notes: string;
   /** Nearest ancestor first, root last. */
-  path: Array<{ id: string; type: NodeType }>;
+  path: Array<{ id: string; type: NodeType; title: string }>;
 }
 
 export function getSearchResults(repo: NodeRepository, query: string): SearchResult[] {
@@ -24,6 +24,6 @@ export function getSearchResults(repo: NodeRepository, query: string): SearchRes
         .getAncestorIds(n.id)
         .map((ancestorId) => repo.getById(ancestorId))
         .filter((ancestor) => ancestor !== null)
-        .map((ancestor) => ({ id: ancestor.id, type: ancestor.type })),
+        .map((ancestor) => ({ id: ancestor.id, type: ancestor.type, title: ancestor.title })),
     }));
 }

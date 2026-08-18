@@ -9,6 +9,8 @@ export interface NodeDetail {
   whenDate: string | null;
   deadline: string | null;
   completedAt: string | null;
+  /** Nearest ancestor first, root last. */
+  path: Array<{ id: string; type: NodeType; title: string }>;
 }
 
 export function getNode(repo: NodeRepository, id: string): NodeDetail | null {
@@ -23,5 +25,10 @@ export function getNode(repo: NodeRepository, id: string): NodeDetail | null {
     whenDate: node.whenDate,
     deadline: node.deadline,
     completedAt: node.completedAt,
+    path: repo
+      .getAncestorIds(node.id)
+      .map((ancestorId) => repo.getById(ancestorId))
+      .filter((ancestor) => ancestor !== null)
+      .map((ancestor) => ({ id: ancestor.id, type: ancestor.type, title: ancestor.title })),
   };
 }

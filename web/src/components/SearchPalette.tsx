@@ -11,7 +11,7 @@ const DEBOUNCE_MS = 200;
 function buildOpenPath(result: SearchResult): OpenPathEntry[] {
   const ancestorProjects = [...result.path]
     .reverse()
-    .filter((a): a is { id: string; type: "project" } => a.type === "project");
+    .filter((a): a is { id: string; type: "project"; title: string } => a.type === "project");
   if (result.type === "project" || result.type === "todo") {
     return [...ancestorProjects, { id: result.id, type: result.type }];
   }
