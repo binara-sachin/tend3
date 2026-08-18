@@ -38,7 +38,7 @@ describe("SearchPalette", () => {
     renderWithProviders(<SearchPalette />);
     await user.type(screen.getByRole("textbox"), "mil");
 
-    expect(await screen.findByText("Buy milk")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Buy milk/ })).toBeInTheDocument();
   });
 
   it("Enter on a result opens its full column path and closes the palette", async () => {
@@ -63,7 +63,7 @@ describe("SearchPalette", () => {
 
     renderWithProviders(<SearchPalette />);
     await user.type(screen.getByRole("textbox"), "milk");
-    await screen.findByText("Buy milk");
+    await screen.findByRole("button", { name: /Buy milk/ });
     await user.keyboard("{Enter}");
 
     expect(useUiStore.getState().openPath).toEqual([
@@ -95,7 +95,7 @@ describe("SearchPalette", () => {
 
     renderWithProviders(<SearchPalette />);
     await user.type(screen.getByRole("textbox"), "milk");
-    await screen.findByText("Buy milk");
+    await screen.findByRole("button", { name: /Buy milk/ });
     await user.keyboard("{Enter}");
 
     expect(useUiStore.getState().expandedHeadings["heading-1"]).toBe(true);
