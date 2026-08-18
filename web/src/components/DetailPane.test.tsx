@@ -127,4 +127,20 @@ describe("DetailPane", () => {
     await waitFor(() => expect(screen.getByLabelText(/when/i)).toHaveValue("2024-09-01"));
     expect(screen.getByLabelText(/deadline/i)).toHaveValue("2024-10-01");
   });
+
+  it("hides itself once its node is gone for good (e.g. purged) instead of showing stale content", async () => {
+    mswServer.use(http.get("/api/nodes/todo-1", () => HttpResponse.json(NODE)));
+
+    const { queryClient } = renderWithProviders(<DetailPane nodeId="todo-1" parentId="p1" />);
+    await screen.findByDisplayValue("2%");
+
+    mswServer.use(
+      http.get("/api/nodes/todo-1", () =>
+        HttpResponse.json({ error: "node todo-1 not found" }, { status: 404 }),
+      ),
+    );
+    await queryClient.invalidateQueries({ queryKey: ["node", "todo-1"] });
+
+    await waitFor(() => expect(screen.queryByDisplayValue("2%")).not.toBeInTheDocument());
+  });
 });

@@ -7,7 +7,7 @@ export interface DetailPaneProps {
 }
 
 export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
-  const { data: node } = useNode(nodeId);
+  const { data: node, isError } = useNode(nodeId);
   const runCommand = useRunCommand();
   const [notes, setNotes] = useState<string | null>(null);
   const [whenDate, setWhenDate] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
     setDeadline(null);
   }, [node?.deadline]);
 
-  if (!node) return null;
+  if (!node || isError) return null;
 
   return (
     <div>
