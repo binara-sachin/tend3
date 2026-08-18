@@ -76,6 +76,22 @@ describe("useRunCommand", () => {
     expect(queryClient.getQueryState(["columns", "unrelated"])?.isInvalidated).toBe(false);
   });
 
+  it("invalidates the root columns query (['columns', null]) when parentId is explicitly null", async () => {
+    mswServer.use(http.post("/api/commands", () => HttpResponse.json({ id: "x" })));
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["columns", null], []);
+
+    const { result } = renderHook(() => useRunCommand(), { wrapper: wrapperWith(queryClient) });
+    result.current.mutate({
+      type: "CreateNode",
+      payload: { parentId: null, type: "project", title: "new" },
+      parentId: null,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(["columns", null])?.isInvalidated).toBe(true);
+  });
+
   it("also invalidates the currently-open node's detail query when the open path ends on a todo", async () => {
     mswServer.use(http.post("/api/commands", () => HttpResponse.json({ id: "x" })));
     const queryClient = new QueryClient();

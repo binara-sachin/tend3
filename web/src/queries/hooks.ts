@@ -32,11 +32,11 @@ export function useTrash() {
 export interface RunCommandVars {
   type: string;
   payload: object;
-  /** The parentId of the column the mutated node lives in, for cache invalidation. Omit for commands with no single column (e.g. Trash actions). */
-  parentId?: string;
+  /** The parentId of the column the mutated node lives in, for cache invalidation — null for the root column. Omit for commands with no single column (e.g. Trash actions). */
+  parentId?: string | null;
 }
 
-function invalidateAfterMutation(queryClient: QueryClient, parentId?: string) {
+function invalidateAfterMutation(queryClient: QueryClient, parentId?: string | null) {
   if (parentId !== undefined) {
     queryClient.invalidateQueries({ queryKey: ["columns", parentId] });
   }

@@ -45,6 +45,37 @@ test("editing notes in the detail pane persists across a reload", async ({ page,
   await expect(page.locator("textarea")).toHaveValue("updated via E2E");
 });
 
+test("Cmd+N at the sidebar level creates a new root-level project", async ({ page, request }) => {
+  const existing = await createProject(request, uniqueTitle("Existing"));
+
+  await page.goto("/");
+  await page.getByText(existing.title).click(); // selects it, parentId "root"
+  await page.keyboard.press("Meta+n");
+
+  // The new project is created with a blank title — same two-step
+  // click-then-Enter rename flow as a freshly created todo, not an
+  // automatic focus/rename. Identify it by its (empty) accessible name
+  // rather than position: the shared E2E database accumulates root-level
+  // projects across the whole suite run, but every other fixture uses
+  // uniqueTitle() and is never blank.
+  const newRow = page.locator("nav ul").nth(1).getByRole("button", { name: "", exact: true });
+  await expect(newRow).toHaveCount(1);
+  await newRow.click();
+  await page.keyboard.press("Enter");
+  const renameInput = page.locator('input:not([type="date"])');
+  await renameInput.waitFor();
+  await renameInput.fill("Brand New Project");
+  await renameInput.press("Enter");
+
+  await expect(page.getByText("Brand New Project")).toBeVisible();
+
+  // Round-trips the server as a real root-level project, not a todo.
+  await page.reload();
+  await expect(page.getByText("Brand New Project")).toBeVisible();
+  await page.getByText("Brand New Project").click();
+  await expect(page.getByRole("button", { name: "Show completed" })).toBeVisible();
+});
+
 test("Space toggles a todo's completion, hiding and (via Show completed) revealing it", async ({
   page,
   request,

@@ -110,6 +110,39 @@ describe("useKeyboardShortcuts", () => {
     expect(body.payload.parentId).toBe("p1");
   });
 
+  it("Cmd+N at the root level (focusedColumnParentId 'root') creates a new project, not a todo", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["columns", null], [{ id: "inbox", sortKey: "a0" }]);
+    useUiStore.getState().setFocusedColumnParentId("root");
+    const bodyPromise = capturePost();
+    renderShortcuts(queryClient);
+
+    await userEvent.keyboard("{Meta>}n{/Meta}");
+
+    const body = (await bodyPromise) as {
+      type: string;
+      payload: { parentId: string | null; type: string };
+    };
+    expect(body.type).toBe("CreateNode");
+    expect(body.payload.parentId).toBeNull();
+    expect(body.payload.type).toBe("project");
+  });
+
+  it("Cmd+N with a root-level project selected also creates a new project at the root", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["columns", null], [{ id: "inbox", sortKey: "a0" }]);
+    useUiStore.getState().setActiveSelection({ parentId: "root", nodeId: "inbox", type: "project" });
+    const bodyPromise = capturePost();
+    renderShortcuts(queryClient);
+
+    await userEvent.keyboard("{Meta>}n{/Meta}");
+
+    const body = (await bodyPromise) as { type: string; payload: { parentId: string | null; type: string } };
+    expect(body.type).toBe("CreateNode");
+    expect(body.payload.parentId).toBeNull();
+    expect(body.payload.type).toBe("project");
+  });
+
   it("Cmd+N creates a sibling below the current selection", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(["columns", "p1"], [{ id: "todo-1", sortKey: "a0" }]);

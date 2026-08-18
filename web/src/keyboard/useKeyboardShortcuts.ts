@@ -18,24 +18,38 @@ export function useKeyboardShortcuts(): void {
   const redo = useRedo();
 
   useEffect(() => {
-    function siblingsOf(parentId: string): CachedRow[] {
-      return queryClient.getQueryData<CachedRow[]>(["columns", parentId]) ?? [];
+    // "root" is the same string sentinel /api/columns/:parentId already
+    // uses for the same concept (see server/app.ts) — the sidebar (the
+    // only place a root-level item can be selected/focused from, since it
+    // is never a Column) uses it too, so it has to be translated back to
+    // the real API value of null wherever it reaches a query key or a
+    // command payload.
+    function toApiParentId(uiParentId: string): string | null {
+      return uiParentId === "root" ? null : uiParentId;
     }
 
-    function createTodo(targetParentId: string) {
+    function siblingsOf(targetParentId: string): CachedRow[] {
+      return queryClient.getQueryData<CachedRow[]>(["columns", toApiParentId(targetParentId)]) ?? [];
+    }
+
+    function createNode(targetParentId: string) {
+      const apiParentId = toApiParentId(targetParentId);
+      // Invariant 3 (root nodes are always project): creating directly at
+      // the root must produce a project, not a todo.
+      const type: "project" | "todo" = apiParentId === null ? "project" : "todo";
       const lastSortKey = siblingsOf(targetParentId).at(-1)?.sortKey ?? null;
       runCommand.mutate({
         type: "CreateNode",
         payload: {
-          parentId: targetParentId,
-          type: "todo",
+          parentId: apiParentId,
+          type,
           title: "",
           notes: "",
           sortKey: lastSortKey ? sortKeyAfter(lastSortKey) : firstSortKey(),
           whenDate: null,
           deadline: null,
         },
-        parentId: targetParentId,
+        parentId: apiParentId,
       });
     }
 
@@ -60,7 +74,7 @@ export function useKeyboardShortcuts(): void {
         runCommand.mutate({
           type: "TrashNode",
           payload: { nodeId: selection.nodeId },
-          parentId: selection.parentId,
+          parentId: toApiParentId(selection.parentId),
         });
         return;
       }
@@ -89,7 +103,7 @@ export function useKeyboardShortcuts(): void {
           // Child inside the selected project — needs an actual project selected.
           if (!selection || selection.type !== "project") return;
           e.preventDefault();
-          createTodo(selection.nodeId);
+          createNode(selection.nodeId);
           return;
         }
 
@@ -98,7 +112,7 @@ export function useKeyboardShortcuts(): void {
         const targetParentId = selection ? selection.parentId : focusedColumnParentId;
         if (!targetParentId) return;
         e.preventDefault();
-        createTodo(targetParentId);
+        createNode(targetParentId);
       }
     }
 
