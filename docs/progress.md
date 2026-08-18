@@ -270,3 +270,124 @@ and `web/`'s tsconfig) clean.
 - Column widths default to 280px with no persistence-format migration
   story; fine for a single-user local app with no stored data yet, but
   worth a look if the `localStorage` shape ever needs to change.
+
+## Phase 3 — Drag and Drop
+
+**Status: complete.** Full design rationale in
+`docs/superpowers/specs/2026-08-18-phase3-drag-and-drop-design.md`; plan in
+`docs/superpowers/plans/2026-08-18-phase3-drag-and-drop.md`.
+
+### What shipped
+
+- **`commands/Rebalance.ts`**: renumbers a parent's children evenly via
+  `evenlySpacedKeys()` (wrapping `fractional-indexing`'s
+  `generateNKeysBetween`). Unlike `EmptyTrash`, it's fully invertible — its
+  own inverse (`SetSortKeys`) swaps between the captured prior and new
+  `(id, sortKey, updatedAt)` sets. `repo.updateSortKey()` added alongside
+  (updates only `sort_key`/`updated_at`, distinct from
+  `updateParentAndSortKey`, which `MoveNode` needs).
+- **`MoveNode` exposed over HTTP**, joining the other seven commands.
+  `POST /api/commands` auto-triggers `Rebalance` as a separate
+  `executeCommand` call (its own transaction/`command_log` entry) whenever
+  a `CreateNode`/`MoveNode`'s affected parent ends up with a sibling
+  `sort_key` longer than 50 characters (spec §6.1's mitigation) —
+  deliberately decoupled from the triggering command's own invert().
+- **`@dnd-kit/core` + `@dnd-kit/sortable`**: `DragProvider` (one shared
+  `DndContext` wrapping `Sidebar` + `ColumnStack`, so dragging onto a
+  sidebar smart list is possible), a dedicated drag-handle per row
+  (separate from the row itself — dnd-kit's default activation keys
+  Space/Enter would otherwise collide with the app's own Space-to-complete
+  and Enter-to-rename), a whole-row `useDroppable` on project rows for
+  "reparent into," and a custom `collisionDetection` that prioritizes the
+  whole-row target whenever the pointer is literally within it
+  (`pointerWithin`), falling back to the sortable list's own
+  `closestCenter` insertion-line detection otherwise.
+- **`web/src/dnd/resolveMove.ts` + `sidebarActions.ts`**: the actual
+  drag-resolution logic (same-column reorder, cross-column insertion,
+  whole-row append, sidebar action dispatch) lives in pure,
+  framework-free functions, unit-tested directly with fabricated
+  ids/rects/rows — no DOM needed. `ColumnStack`/`DragProvider` are thin
+  glue calling these and firing the resulting `MoveNode`/`SetWhen`/
+  `TrashNode` mutation.
+- Sidebar: `Today` and `Trash` are dedicated droppable `<li>`s; `Inbox`
+  reuses its existing row in the root-projects list (a real `is_system`
+  project), registering the drop id only on that one row; `Logbook`
+  registers no droppable at all (spec §6: "not a drop target").
+
+### Bugs and gaps the tests — and the real browser — actually caught
+
+1. **`ColumnRow` never included `sortKey` at all**, meaning
+   `useKeyboardShortcuts`' Cmd+N "insert after last sibling" logic had been
+   silently broken since Phase 2 — it read a field the real API response
+   never had; only test doubles that happened to include it masked this.
+   Found while designing the drag-reorder logic (which also needs
+   `sortKey`), not by any existing test. Fixed by adding `sortKey` to
+   `ColumnRow`/`getColumn`, correcting Cmd+N's positioning retroactively.
+2. **dnd-kit's `KeyboardSensor` cannot be meaningfully exercised in
+   jsdom.** It resolves "next item" by comparing element rects, and jsdom
+   reports every element as a zero-size rect at the same position — so
+   RTL-driven pick-up/move/drop sequences never actually moved between
+   items, and separately crashed on a missing `scrollIntoView` (which
+   jsdom doesn't implement and dnd-kit calls unconditionally on
+   activation). Spec §8 says to test "under Playwright" specifically for
+   this reason — a detail this phase's design initially missed, assuming
+   RTL could stand in. Corrected by extracting all drag-resolution math
+   into pure functions (directly unit-tested) and moving the actual
+   keyboard/pointer interaction to the real-browser pass; added the
+   `scrollIntoView` polyfill regardless, since it's needed any time the
+   sensor activates in jsdom at all (e.g. for existence/wiring checks).
+3. **Real sort-key computation bug caught before it shipped**: the first
+   draft of the same-column reorder logic used `sortKeyAfter(prevKey)`
+   whenever `prevKey` was non-null, regardless of whether a `nextKey` also
+   existed — meaning a middle-of-the-list drop could generate a key with
+   no upper bound, risking collision with or exceeding the following
+   sibling. Caught by re-reading the logic against its own unit tests
+   before running them, not by a failing test — fixed to use
+   `sortKeyBetween(prevKey, nextKey)` whenever a `nextKey` exists.
+4. **The real-browser verification script itself had two bugs**, both
+   worth noting since they could as easily have been mistaken for app
+   bugs: a hardcoded test fixture sort key collided with where a prior
+   drag had moved a row to (fixed by using a key that couldn't plausibly
+   collide), and a premature read of a newly-opened column's contents
+   raced its query response (fixed by waiting for actual row content, not
+   just the column container). Both were caught by checking the server's
+   own data directly via `curl` before concluding the app was wrong.
+
+None of items 1–3 were caught by manual inspection — 1 and 3 by design-time
+review, 2 by empirically running the tests and reading the actual failure.
+Item 4 is a reminder that the verification script itself needs the same
+skepticism as the code it's checking.
+
+### Real-browser verification
+
+Standalone Playwright script (same approach as Phase 2 — the bundled MCP
+tool requires a `chrome`-channel binary unavailable on this host's Linux
+ARM64; used the `playwright` npm package's own bundled Chromium instead,
+installed temporarily via `npm install --no-save`, removed after) drove,
+via actual pointer events against the real dev server: reordering two
+todos within a column (confirmed persisted after reload), dragging a todo
+onto a project row to reparent it (confirmed via both the UI and a direct
+API query), and dragging a todo onto the sidebar's Trash entry (confirmed
+removed from view). All three passed.
+
+### Test counts
+
+239 tests, 34 files, all passing. `npm run typecheck` clean.
+
+### Residual risk / known gaps carried into later phases
+
+- No checked-in automated E2E suite still — same gap noted at the end of
+  Phase 2, now also covering drag-and-drop. The real-browser verification
+  for both phases has been a manual one-off script each time. Worth
+  building a proper Playwright test harness before Phase 4 adds more
+  surface area (search, smart lists) to verify.
+- The whole-row vs. insertion-line disambiguation was verified for the
+  common cases (drop squarely on a row's center vs. between two rows) but
+  not stress-tested at the exact boundary between the two hit zones, or
+  with edge autoscroll during a drag that needs to reach an off-screen
+  column — spec §6.1 flags both as real risks this phase doesn't fully
+  close out.
+- Rebalance's 50-character threshold and the "check after every
+  `CreateNode`/`MoveNode`" trigger are unexercised by the real-browser
+  pass (no test dragged the same item repeatedly to the same position
+  enough times to trigger it) — covered only at the unit/command level.
