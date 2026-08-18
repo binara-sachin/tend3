@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createProject, createTodo, setCompleted, trashNode, uniqueTitle } from "./helpers.js";
+import { createHeading, createProject, createTodo, setCompleted, trashNode, uniqueTitle } from "./helpers.js";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -106,4 +106,34 @@ test("Cmd+K finds a todo by a notes-only match and opens its full column path", 
   await expect(page.getByRole("dialog", { name: "Search" })).toHaveCount(0);
   await expect(page.getByText(todoTitle).first()).toBeVisible();
   await expect(page.locator("textarea")).toHaveValue(new RegExp(uniqueToken));
+});
+
+test("Cmd+K finds a todo nested under a collapsed heading and expands the heading to reveal it", async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(request, uniqueTitle("Heading Search Project"));
+  const heading = await createHeading(request, project.id, uniqueTitle("Heading"), "a0");
+  const todoTitle = uniqueTitle("Todo under heading");
+  const uniqueToken = `headingtoken${Date.now()}`;
+  await createTodo(request, heading.id, {
+    title: todoTitle,
+    sortKey: "a0",
+    notes: `contains ${uniqueToken}`,
+  });
+
+  await page.goto("/");
+  await page.getByText(project.title).click();
+  await expect(page.getByText(heading.title)).toBeVisible();
+  await expect(page.getByText(todoTitle)).toHaveCount(0); // heading starts collapsed
+
+  await page.keyboard.press("Meta+k");
+  await page.getByRole("dialog", { name: "Search" }).waitFor();
+  await page.keyboard.type(uniqueToken);
+  await expect(page.getByText(todoTitle)).toBeVisible({ timeout: 3000 });
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("dialog", { name: "Search" })).toHaveCount(0);
+  // The heading is now expanded — the todo shows inline without clicking it.
+  await expect(page.getByText(todoTitle).first()).toBeVisible();
 });

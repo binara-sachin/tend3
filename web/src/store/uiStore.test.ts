@@ -108,3 +108,14 @@ describe("setSearchOpen", () => {
     expect(useUiStore.getState().isSearchOpen).toBe(false);
   });
 });
+
+describe("setHeadingExpanded", () => {
+  it("expands and collapses a heading, independent of other headings", () => {
+    useUiStore.getState().setHeadingExpanded("h1", true);
+    expect(useUiStore.getState().expandedHeadings.h1).toBe(true);
+    expect(useUiStore.getState().expandedHeadings.h2).toBeFalsy();
+
+    useUiStore.getState().setHeadingExpanded("h1", false);
+    expect(useUiStore.getState().expandedHeadings.h1).toBe(false);
+  });
+});

@@ -25,6 +25,8 @@ export interface UiState {
   activeSmartList: SmartList | null;
   /** Whether the ⌘K search palette is open. */
   isSearchOpen: boolean;
+  /** Which headings are currently expanded inline within their column — global (not per-column) since a heading has exactly one parent column. */
+  expandedHeadings: Record<string, boolean>;
   select(depth: number, entry: OpenPathEntry): void;
   setColumnWidth(index: number, width: number): void;
   toggleShowCompleted(parentId: string): void;
@@ -32,6 +34,7 @@ export interface UiState {
   setFocusedColumnParentId(parentId: string): void;
   setActiveSmartList(list: SmartList | null): void;
   setSearchOpen(open: boolean): void;
+  setHeadingExpanded(headingId: string, expanded: boolean): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -44,6 +47,7 @@ export const useUiStore = create<UiState>()(
       focusedColumnParentId: null,
       activeSmartList: null,
       isSearchOpen: false,
+      expandedHeadings: {},
 
       select(depth, entry) {
         set({ openPath: [...get().openPath.slice(0, depth), entry], activeSmartList: null });
@@ -72,6 +76,10 @@ export const useUiStore = create<UiState>()(
 
       setSearchOpen(open) {
         set({ isSearchOpen: open });
+      },
+
+      setHeadingExpanded(headingId, expanded) {
+        set({ expandedHeadings: { ...get().expandedHeadings, [headingId]: expanded } });
       },
     }),
     { name: "tend-ui" },

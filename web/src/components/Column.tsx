@@ -114,9 +114,10 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
   const showCompleted = useUiStore((s) => s.showCompleted[columnKey(parentId)] ?? false);
   const select = useUiStore((s) => s.select);
   const setActiveSelection = useUiStore((s) => s.setActiveSelection);
+  const expandedHeadings = useUiStore((s) => s.expandedHeadings);
+  const setHeadingExpanded = useUiStore((s) => s.setHeadingExpanded);
   const runCommand = useRunCommand();
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [expandedHeadings, setExpandedHeadings] = useState<Set<string>>(new Set());
 
   if (!rows) return null;
 
@@ -124,12 +125,7 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
   const parentKey = columnKey(parentId);
 
   function toggleHeading(id: string) {
-    setExpandedHeadings((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setHeadingExpanded(id, !expandedHeadings[id]);
   }
 
   function submitRename(nodeId: string, title: string) {
@@ -162,7 +158,7 @@ function ColumnBody({ parentId, depth }: ColumnBodyProps) {
                 }
               }}
             />
-            {row.type === "heading" && expandedHeadings.has(row.id) && (
+            {row.type === "heading" && expandedHeadings[row.id] && (
               <ColumnBody parentId={row.id} depth={depth} />
             )}
           </li>

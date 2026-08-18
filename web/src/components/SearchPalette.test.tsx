@@ -73,6 +73,34 @@ describe("SearchPalette", () => {
     expect(useUiStore.getState().isSearchOpen).toBe(false);
   });
 
+  it("Enter on a result also expands any heading ancestor in its path", async () => {
+    useUiStore.getState().setSearchOpen(true);
+    mswServer.use(
+      http.get("/api/search", () =>
+        HttpResponse.json([
+          {
+            id: "todo-1",
+            type: "todo",
+            title: "Buy milk",
+            notes: "",
+            path: [
+              { id: "heading-1", type: "heading" },
+              { id: "p1", type: "project" },
+            ],
+          },
+        ]),
+      ),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<SearchPalette />);
+    await user.type(screen.getByRole("textbox"), "milk");
+    await screen.findByText("Buy milk");
+    await user.keyboard("{Enter}");
+
+    expect(useUiStore.getState().expandedHeadings["heading-1"]).toBe(true);
+  });
+
   it("Escape closes the palette without changing the open path", async () => {
     useUiStore.getState().setSearchOpen(true);
     mswServer.use(http.get("/api/search", () => HttpResponse.json([])));

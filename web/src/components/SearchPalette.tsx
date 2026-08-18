@@ -5,8 +5,9 @@ import { useUiStore, type OpenPathEntry } from "../store/uiStore.js";
 const DEBOUNCE_MS = 200;
 
 /** Opens the enclosing project column chain (root first), plus the result itself
- * when it's directly representable in the open path (project or todo — headings
- * aren't tracked there, since they're per-column expansion state, not global). */
+ * when it's directly representable in the open path (project or todo — a heading
+ * itself can't be, since openPath only ever holds project/todo entries; any
+ * heading ancestors get expanded separately by chooseResult()). */
 function buildOpenPath(result: SearchResult): OpenPathEntry[] {
   const ancestorProjects = [...result.path]
     .reverse()
@@ -21,6 +22,7 @@ export function SearchPalette() {
   const isOpen = useUiStore((s) => s.isSearchOpen);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const select = useUiStore((s) => s.select);
+  const setHeadingExpanded = useUiStore((s) => s.setHeadingExpanded);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -52,6 +54,11 @@ export function SearchPalette() {
 
   function chooseResult(result: SearchResult) {
     buildOpenPath(result).forEach((entry, depth) => select(depth, entry));
+    for (const ancestor of result.path) {
+      if (ancestor.type === "heading") {
+        setHeadingExpanded(ancestor.id, true);
+      }
+    }
     close();
   }
 
