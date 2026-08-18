@@ -45,10 +45,12 @@ export interface CommandCase {
  * (Task 7 onward). Each entry gets the same apply -> invert -> compare
  * treatment against many random trees.
  *
- * EmptyTrash is deliberately never registered here: spec 7.3 lists it with
- * no inverse ("none — irreversible, confirm in UI"), and its invert()
- * throws NotInvertibleError by design (see commands/EmptyTrash.ts). It has
- * its own direct tests in test/commands/emptyTrash.test.ts instead.
+ * EmptyTrash and PurgeNode are deliberately never registered here: spec 7.3
+ * lists them with no inverse ("none — irreversible, confirm in UI"), and
+ * their invert() throws NotInvertibleError by design (see
+ * commands/EmptyTrash.ts and commands/PurgeNode.ts). They have their own
+ * direct tests in test/commands/emptyTrash.test.ts and
+ * test/commands/purgeNode.test.ts instead.
  */
 export const REGISTERED_COMMANDS: CommandCase[] = [
   {
