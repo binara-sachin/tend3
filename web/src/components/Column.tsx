@@ -1,3 +1,4 @@
+import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
@@ -32,6 +33,13 @@ function Row({
     id: row.id,
     data: { parentId: parentKey, sortKey: row.sortKey, type: row.type },
   });
+  // Only project rows are valid "reparent into" whole-row targets; the ref
+  // is simply never attached for other row types (see the JSX below), so
+  // dnd-kit never registers/measures a droppable for them.
+  const { setNodeRef: setWholeRowDropRef } = useDroppable({
+    id: `project-drop-${row.id}`,
+    data: { parentId: row.id, type: "whole-row" },
+  });
 
   if (isRenaming) {
     return (
@@ -56,9 +64,11 @@ function Row({
         ⠿
       </button>
       <div
+        ref={row.type === "project" ? setWholeRowDropRef : undefined}
         role="button"
         tabIndex={0}
         data-row="true"
+        data-droppable-id={row.type === "project" ? `project-drop-${row.id}` : undefined}
         style={{ minHeight: "1.4em" }}
         onClick={onSelect}
         onKeyDown={(e) => {

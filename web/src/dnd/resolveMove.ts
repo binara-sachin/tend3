@@ -46,3 +46,57 @@ export function resolveSameColumnReorder(
     parentId: overParentId,
   };
 }
+
+/** Which side of the target row's vertical midpoint the dragged item's center sits on. */
+export function resolveInsertSide(
+  activeCenterY: number,
+  overTop: number,
+  overHeight: number,
+): "before" | "after" {
+  return activeCenterY < overTop + overHeight / 2 ? "before" : "after";
+}
+
+export interface ResolvedInsertion {
+  newParentId: string | null;
+  newSortKey: string;
+  parentId: string;
+}
+
+/**
+ * Inserting a node (currently in a different column) before/after `overId`
+ * within `siblings` — the target column's existing rows, which do NOT yet
+ * include the dragged node.
+ */
+export function resolveCrossColumnInsertion(
+  overId: string,
+  overParentId: string,
+  side: "before" | "after",
+  siblings: ColumnRow[],
+): ResolvedInsertion | null {
+  const overIndex = siblings.findIndex((r) => r.id === overId);
+  if (overIndex === -1) return null;
+
+  const overRow = siblings[overIndex] as ColumnRow;
+  const prevKey = side === "before" ? (siblings[overIndex - 1]?.sortKey ?? null) : overRow.sortKey;
+  const nextKey = side === "before" ? overRow.sortKey : (siblings[overIndex + 1]?.sortKey ?? null);
+  const newSortKey = nextKey !== null ? sortKeyBetween(prevKey, nextKey) : sortKeyAfter(prevKey);
+
+  return {
+    newParentId: overParentId === "root" ? null : overParentId,
+    newSortKey,
+    parentId: overParentId,
+  };
+}
+
+/** Reparenting into a project via its whole-row drop target: always appended at the end. */
+export function resolveWholeRowDrop(
+  targetProjectId: string,
+  targetChildren: ColumnRow[],
+): ResolvedInsertion {
+  const lastKey = targetChildren.at(-1)?.sortKey ?? null;
+  return {
+    newParentId: targetProjectId,
+    newSortKey: sortKeyAfter(lastKey),
+    parentId: targetProjectId,
+  };
+}

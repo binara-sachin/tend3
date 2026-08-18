@@ -3,18 +3,40 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRef, useState } from "react";
 import type { ColumnRow } from "../../../queries/getColumn.js";
-import { resolveSameColumnReorder } from "../dnd/resolveMove.js";
+import {
+  resolveCrossColumnInsertion,
+  resolveInsertSide,
+  resolveSameColumnReorder,
+  resolveWholeRowDrop,
+} from "../dnd/resolveMove.js";
 import { useRunCommand } from "../queries/hooks.js";
 import { useUiStore } from "../store/uiStore.js";
 import { Column } from "./Column.js";
 import { queryClient } from "../queries/queryClient.js";
+
+const WHOLE_ROW_DROP_PREFIX = "project-drop-";
+
+/**
+ * Prioritizes a whole-row "drop into project" target whenever the pointer is
+ * literally within its bounds; falls back to the sortable list's own
+ * closest-center insertion-line detection otherwise. This disambiguation is
+ * spec 6.1's "highest risk in the project" callout.
+ */
+const collisionDetectionStrategy: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  const wholeRowHit = pointerCollisions.find((c) => String(c.id).startsWith(WHOLE_ROW_DROP_PREFIX));
+  if (wholeRowHit) return [wholeRowHit];
+  return closestCenter(args);
+};
 
 const DEFAULT_WIDTH = 280;
 
@@ -87,24 +109,60 @@ export function ColumnStack() {
     if (!over) return;
 
     const activeData = active.data.current as SortableItemData | undefined;
-    const overData = over.data.current as SortableItemData | undefined;
-    if (!activeData || !overData) return; // dropped somewhere without item data (not yet handled — Task 4/5)
+    if (!activeData) return;
+    const nodeId = String(active.id);
 
-    // This task only handles reordering within the same column; cross-column
-    // reparenting and whole-row "drop into project" land in the next task.
-    const siblings = queryClient.getQueryData<ColumnRow[]>(["columns", overData.parentId]) ?? [];
-    const resolved = resolveSameColumnReorder(
-      String(active.id),
-      String(over.id),
-      activeData.parentId,
-      overData.parentId,
-      siblings,
+    const overIdStr = String(over.id);
+    if (overIdStr.startsWith(WHOLE_ROW_DROP_PREFIX)) {
+      const targetProjectId = overIdStr.slice(WHOLE_ROW_DROP_PREFIX.length);
+      if (targetProjectId === nodeId) return; // can't drop a project into itself
+      const targetChildren = queryClient.getQueryData<ColumnRow[]>(["columns", targetProjectId]) ?? [];
+      const resolved = resolveWholeRowDrop(targetProjectId, targetChildren);
+      runCommand.mutate({
+        type: "MoveNode",
+        payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
+        parentId: resolved.parentId,
+      });
+      return;
+    }
+
+    const overData = over.data.current as SortableItemData | undefined;
+    if (!overData) return;
+
+    if (activeData.parentId === overData.parentId) {
+      const siblings = queryClient.getQueryData<ColumnRow[]>(["columns", overData.parentId]) ?? [];
+      const resolved = resolveSameColumnReorder(
+        nodeId,
+        overIdStr,
+        activeData.parentId,
+        overData.parentId,
+        siblings,
+      );
+      if (!resolved) return;
+      runCommand.mutate({
+        type: "MoveNode",
+        payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
+        parentId: resolved.parentId,
+      });
+      return;
+    }
+
+    // Cross-column: active isn't yet among `over`'s siblings, so which side of
+    // `over` it lands on has to come from the drag's actual measured rects.
+    const activeRect = active.rect.current.translated ?? active.rect.current.initial;
+    if (!activeRect) return;
+    const side = resolveInsertSide(
+      activeRect.top + activeRect.height / 2,
+      over.rect.top,
+      over.rect.height,
     );
+    const siblings = queryClient.getQueryData<ColumnRow[]>(["columns", overData.parentId]) ?? [];
+    const resolved = resolveCrossColumnInsertion(overIdStr, overData.parentId, side, siblings);
     if (!resolved) return;
 
     runCommand.mutate({
       type: "MoveNode",
-      payload: { nodeId: resolved.nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
+      payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
       parentId: resolved.parentId,
     });
   }
@@ -116,7 +174,7 @@ export function ColumnStack() {
   const projectIds = openPath.filter((e) => e.type === "project").map((e) => e.id);
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragEnd={handleDragEnd}>
       <div style={{ display: "flex" }}>
         {projectIds.map((parentId, index) => {
           const depth = index + 1;

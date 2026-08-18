@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { firstSortKey, sortKeyAfter } from "../../../lib/sortKey.js";
 import type { ColumnRow } from "../../../queries/getColumn.js";
-import { resolveSameColumnReorder } from "./resolveMove.js";
+import {
+  resolveCrossColumnInsertion,
+  resolveInsertSide,
+  resolveSameColumnReorder,
+  resolveWholeRowDrop,
+} from "./resolveMove.js";
 
 function row(id: string, sortKey: string): ColumnRow {
   return {
@@ -84,5 +89,69 @@ describe("resolveSameColumnReorder", () => {
   it("returns null if either id is missing from the siblings list", () => {
     const siblings = [row("a", firstSortKey())];
     expect(resolveSameColumnReorder("a", "missing", "p1", "p1", siblings)).toBeNull();
+  });
+});
+
+describe("resolveInsertSide", () => {
+  it("is 'before' when the dragged item's center sits above the target row's midpoint", () => {
+    expect(resolveInsertSide(10, 0, 40)).toBe("before"); // midpoint = 20
+  });
+
+  it("is 'after' when the dragged item's center sits below the target row's midpoint", () => {
+    expect(resolveInsertSide(30, 0, 40)).toBe("after"); // midpoint = 20
+  });
+});
+
+describe("resolveCrossColumnInsertion", () => {
+  it("computes a key between over and its predecessor when inserting before it", () => {
+    const [keyA, keyB] = sequentialKeys(2);
+    const siblings = [row("a", keyA as string), row("b", keyB as string)];
+
+    const result = resolveCrossColumnInsertion("b", "p2", "before", siblings);
+
+    expect(result?.newParentId).toBe("p2");
+    expect(result?.parentId).toBe("p2");
+    expect((result?.newSortKey as string) > (keyA as string)).toBe(true);
+    expect((result?.newSortKey as string) < (keyB as string)).toBe(true);
+  });
+
+  it("computes a key after over when inserting after it, at the end of the list", () => {
+    const [keyA] = sequentialKeys(1);
+    const siblings = [row("a", keyA as string)];
+
+    const result = resolveCrossColumnInsertion("a", "p2", "after", siblings);
+
+    expect((result?.newSortKey as string) > (keyA as string)).toBe(true);
+  });
+
+  it("maps the 'root' parent sentinel to a null newParentId", () => {
+    const [keyA] = sequentialKeys(1);
+    const siblings = [row("a", keyA as string)];
+
+    const result = resolveCrossColumnInsertion("a", "root", "after", siblings);
+
+    expect(result?.newParentId).toBeNull();
+  });
+
+  it("returns null if over is missing from the target siblings", () => {
+    expect(resolveCrossColumnInsertion("missing", "p2", "after", [])).toBeNull();
+  });
+});
+
+describe("resolveWholeRowDrop", () => {
+  it("appends after the target project's last child", () => {
+    const [keyA, keyB] = sequentialKeys(2);
+    const children = [row("a", keyA as string), row("b", keyB as string)];
+
+    const result = resolveWholeRowDrop("proj-1", children);
+
+    expect(result.newParentId).toBe("proj-1");
+    expect(result.parentId).toBe("proj-1");
+    expect((result.newSortKey as string) > (keyB as string)).toBe(true);
+  });
+
+  it("returns a valid first key for a project with no children", () => {
+    const result = resolveWholeRowDrop("proj-1", []);
+    expect(result.newSortKey.length).toBeGreaterThan(0);
   });
 });

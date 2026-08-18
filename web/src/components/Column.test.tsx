@@ -142,4 +142,22 @@ describe("Column", () => {
     await user.keyboard("{ArrowUp}");
     expect(screen.getByText("Groceries")).toHaveFocus();
   });
+
+  it("registers a project row as a whole-row drop target, distinct from its sortable id", async () => {
+    stubColumn("p1", [PROJECT_ROW]);
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Groceries");
+
+    expect(document.querySelector('[data-droppable-id="project-drop-proj-1"]')).not.toBeNull();
+  });
+
+  it("does not register a whole-row drop target for todo rows", async () => {
+    stubColumn("p1", [TODO_ROW]);
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+
+    expect(document.querySelector('[data-droppable-id="project-drop-todo-1"]')).toBeNull();
+  });
 });
