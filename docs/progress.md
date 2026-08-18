@@ -541,3 +541,143 @@ clean.
   Not observed as a problem yet, since Phase 4's own tests and
   real-browser pass never edited a project after completing it, but a
   real risk once the app sees actual multi-day usage.
+
+## Phase 5 — Undo/Redo Wiring
+
+**Status: complete.** Full design rationale in
+`docs/superpowers/specs/2026-08-18-phase5-undo-redo-design.md`; plan in
+`docs/superpowers/plans/2026-08-18-phase5-undo-redo.md`.
+
+### What shipped
+
+- **`server/undoStack.ts`**: `createUndoStack()` — a plain closure over two
+  arrays, instantiated fresh inside each `createApp()` call (spec 7.4: lives
+  in server memory, dies on restart; never a module-level singleton, so
+  tests never leak state across app instances). `push(command)` checks
+  invertibility by calling `.invert()` immediately; a `NotInvertibleError`
+  (only `EmptyTrash`/`PurgeNode` today) clears both stacks entirely rather
+  than skipping just that entry. `undo()`/`redo()` re-run the exact same
+  command instances through the existing `executeCommand`, relying on every
+  command's `apply()` reading live repo state rather than caching it —
+  already true of every command, now actually exercised across two
+  `apply()` calls per instance instead of one.
+- **`POST /api/commands`**: pushes onto the stack after every successful
+  `executeCommand` call, including a separate push for an auto-triggered
+  `Rebalance` if one fires. Two new routes, `POST /api/undo` and
+  `POST /api/redo`, both responding `{ ok: boolean }` — `false` means
+  nothing was there to undo/redo.
+- **Frontend**: `⌘Z`/`⌘⇧Z` added to the existing global keydown listener,
+  ignored while `document.activeElement` is an `<input>`/`<textarea>` so
+  native per-field browser undo still works while renaming or editing.
+  `useUndo()`/`useRedo()` mutation hooks reuse the exact broad
+  cache-invalidation `useRunCommand` already did, now pulled into one
+  shared `invalidateAfterMutation()` helper.
+- **`DetailPane` fix**: its local `notes` override — never reset except on
+  remount — now resets via a `useEffect` whenever the underlying query
+  value changes underneath it, closing a display bug undo would otherwise
+  expose (see below).
+
+### Bugs and gaps the tests — and the design process itself — actually caught
+
+1. **A real, undo-specific display bug, caught during design, not by a
+   failing test written after the fact.** `DetailPane`'s `notes` field
+   shadows the query value with local state once edited, and nothing ever
+   reset it except unmounting. This was harmless before this phase — nothing
+   else ever changed the open node's data while its pane stayed mounted.
+   Undo breaks that assumption: reverting a notes edit while its detail
+   pane is still open would leave the pane showing the un-reverted text,
+   looking exactly like "undo didn't work" to a user even though the
+   database was correct. Recognized while writing the design doc (not
+   discovered empirically), scoped in as a required fix rather than a
+   disclosed gap, and specifically re-verified against a real browser
+   (Task 6) rather than trusting the RTL test alone, since RTL's synchronous
+   re-render could in principle mask a timing issue a real browser wouldn't.
+2. **A second, quieter gap the same fix exposed**: no mutation anywhere in
+   the app had ever invalidated a node's own `["node", id]` query — not
+   even ordinary `SetNotes`/`SetWhen`/`SetDeadline` saves, which worked
+   only because `DetailPane`'s fields are either locally-overridden (notes)
+   or uncontrolled (`defaultValue` on the date inputs), never because the
+   query was kept fresh. Folding this into the shared
+   `invalidateAfterMutation()` helper fixes it for `useRunCommand` too, not
+   just undo/redo — a general correctness improvement (spec 7.5: "no
+   optimistic updates," which implies the client should reliably reflect
+   server truth) that fell out of building undo/redo, not something undo/
+   redo strictly required on its own.
+3. **The real-browser rebalance scenario needed a raw SQL insert to set
+   up, not the HTTP API.** The plan for Task 6 assumed a sibling with an
+   already-too-long `sort_key` could be seeded the same way Task 2's
+   automated test does it — but Task 2's test uses `repo.insert()`
+   directly, bypassing the rebalance check entirely, while the only tool
+   available to the verification script is the HTTP API, and *every*
+   `CreateNode` call rechecks and auto-rebalances immediately if the
+   threshold is already exceeded. The first seeding attempt created the
+   long-key sibling via `POST /api/commands`, which rebalanced it away
+   before the browser ever got to interact with it. Fixed by inserting the
+   long-key row directly into the scratch SQLite file with a throwaway
+   script using `better-sqlite3` (acceptable for a disposable verification
+   DB — this is not application code, same reasoning Phase 1 applied to
+   migrations being schema rather than queries), then letting the browser's
+   own `⌘N` be the create that triggers the rebalance for real.
+4. **No new bugs found once the real-browser script ran correctly.** All 8
+   checks passed on the first fully-corrected run: rename undo/redo,
+   notes-undo with an open detail pane, the two-step rebalance undo, and
+   Empty Trash silently clearing the stack (a subsequent `⌘Z` did nothing,
+   confirmed no error and no unexpected restoration).
+
+### Design decisions settled during the build (resolved with the user before implementation)
+
+- Every executed command — including an auto-triggered `Rebalance` — gets
+  its own undo-stack entry. No bundling/grouping concept exists. In the
+  rare case a rebalance fires, undoing the visible action costs two `⌘Z`'s
+  instead of one; accepted as the simpler design, matching spec 9's framing
+  of this phase as "nearly free."
+- `EmptyTrash`/`PurgeNode` clear both the undo and redo stacks entirely,
+  not just skip their own entry — avoids ever attempting to invert against
+  a node an irreversible purge has already removed.
+- Keyboard-only affordance: no toast, menu item, or history list for what
+  was undone/redone. The app has no notification system anywhere else;
+  building one solely for this feature was judged out of scope.
+- The `When`/`Deadline` fields' staleness (uncontrolled `defaultValue`,
+  won't visually refresh after an undo touches them while their pane is
+  open without a remount) was explicitly disclosed and *not* fixed — same
+  staleness class as the notes bug, narrower window, costlier fix
+  (converting to controlled inputs). Carried forward below.
+
+### Real-browser verification
+
+Same standalone-script approach as Phases 2–4. Seeded a project with a
+renameable todo and a todo with notes via the API, plus (see bug #3 above)
+a direct-SQL long-`sort_key` sibling to force a rebalance. Drove the real
+dev server + Vite build: renamed a todo and undid/redid it; edited notes
+with the detail pane open and undid the edit while the pane stayed mounted;
+triggered `⌘N` against the long-key sibling and confirmed two `⌘Z`'s were
+needed to fully undo the visible create (first undoing just the rebalance,
+second removing the created row); trashed a todo, emptied the trash, and
+confirmed a subsequent `⌘Z` did nothing. 8/8 checks passed.
+
+### Test counts
+
+317 tests, 45 files, all passing. `npm run typecheck` (both tsconfigs)
+clean.
+
+### Residual risk / known gaps carried into later phases
+
+- No checked-in automated E2E suite still — the fourth phase in a row to
+  carry this note forward. Every real-browser pass across all five phases
+  has been a manual, throwaway script, including this phase's undo/redo
+  verification. Worth actually building the checked-in harness before
+  whatever comes after Phase 5, since the spec's own five phases are now
+  complete and any further work will only add more surface area to
+  manually re-verify each time.
+- `DetailPane`'s `When`/`Deadline` fields' staleness gap (see above) —
+  disclosed, not fixed, same as the design doc committed to before
+  implementation started.
+- The pre-existing, unrelated risk that trashing/purging the node
+  currently shown in `DetailPane` (possible via `⌘⌫` or drag-to-trash
+  since Phase 2/3) leaves a detail pane open on a since-deleted node was
+  not addressed this phase either — noted in the design doc as explicitly
+  out of scope, not newly discovered.
+- The undo/redo stack has no size cap by design (in-memory, dies on
+  restart, single-user local app) — not expected to matter at this app's
+  intended scale, but worth remembering if this codebase's assumptions
+  (single user, single process, local-first) ever change.
