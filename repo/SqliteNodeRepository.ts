@@ -301,4 +301,28 @@ export class SqliteNodeRepository implements NodeRepository {
       .get(id) as { count: number };
     return row.count > 0;
   }
+
+  searchCandidates(query: string): NodeRow[] {
+    // Strip FTS5 query-syntax characters (quotes, punctuation, etc.) so
+    // arbitrary user input can never produce a malformed MATCH expression —
+    // an apostrophe alone is enough to throw a syntax error otherwise.
+    const matchQuery = query
+      .trim()
+      .split(/\s+/)
+      .map((term) => term.replace(/[^a-zA-Z0-9]/g, ""))
+      .filter(Boolean)
+      .map((term) => `${term}*`)
+      .join(" ");
+    if (!matchQuery) return [];
+
+    const rows = this.db
+      .prepare(
+        `SELECT nodes.* FROM nodes_fts
+         JOIN nodes ON nodes.id = nodes_fts.id
+         WHERE nodes_fts MATCH ?
+         ORDER BY rank`,
+      )
+      .all(matchQuery) as RawNodeRow[];
+    return rows.map(toNodeRow);
+  }
 }

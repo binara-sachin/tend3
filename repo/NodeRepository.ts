@@ -53,4 +53,6 @@ export interface NodeRepository {
   getNonProjectRowsWithNonzeroCount(): NodeRow[];
   /** True if any live (deleted_at IS NULL) node exists anywhere beneath id, any type, any completion state. */
   hasLiveDescendant(id: string): boolean;
+  /** FTS5 prefix-match over title/notes, indexing everything (trashed included) — filtering is the query layer's job. */
+  searchCandidates(query: string): NodeRow[];
 }

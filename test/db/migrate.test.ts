@@ -75,6 +75,12 @@ describe("migrate", () => {
 
     const version = db.pragma("user_version", { simple: true });
 
-    expect(version).toBe(3);
+    expect(version).toBe(4);
+  });
+
+  it("creates the nodes_fts virtual table", () => {
+    migrate(db);
+
+    expect(tableNames()).toContain("nodes_fts");
   });
 });
