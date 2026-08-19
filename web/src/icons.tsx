@@ -55,7 +55,7 @@ export function TrashIcon(props: IconProps) {
 export function CircleIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   );
 }
@@ -63,7 +63,7 @@ export function CircleIcon(props: IconProps) {
 export function CheckCircleIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <circle cx="12" cy="12" r="9" fill="var(--color-accent-800)" />
+      <rect x="3" y="3" width="18" height="18" rx="5" fill="var(--color-accent-800)" />
       <path
         d="M8 12.5l2.6 2.6L16.5 9"
         stroke="var(--color-accent-300)"
