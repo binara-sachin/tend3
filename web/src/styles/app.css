@@ -106,6 +106,15 @@ textarea {
   color: var(--color-accent-300);
 }
 
+.sidebar-item--add,
+.sidebar-item--add .sidebar-item-icon {
+  color: var(--color-accent);
+}
+
+.sidebar-item--add:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
 .sidebar-divider {
   height: 1px;
   margin: 2px 0;

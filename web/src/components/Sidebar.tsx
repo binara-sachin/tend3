@@ -92,14 +92,6 @@ export function Sidebar() {
       </ul>
       <div className="sidebar-divider" />
       <ul className="list-reset">
-        <li>
-          <button type="button" className="sidebar-item" onClick={() => createNode("root")}>
-            <span className="sidebar-item-icon">
-              <PlusIcon size={13} />
-            </span>
-            New Project
-          </button>
-        </li>
         {(rows ?? []).map((row) => (
           <SidebarProjectRow
             key={row.id}
@@ -113,6 +105,14 @@ export function Sidebar() {
             }}
           />
         ))}
+        <li>
+          <button type="button" className="sidebar-item sidebar-item--add" onClick={() => createNode("root")}>
+            <span className="sidebar-item-icon">
+              <PlusIcon size={13} />
+            </span>
+            New Project
+          </button>
+        </li>
       </ul>
     </nav>
   );
