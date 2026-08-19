@@ -15,6 +15,7 @@ import {
   CircleIcon,
   DocumentIcon,
   FolderIcon,
+  FolderPlusIcon,
   PlusIcon,
 } from "../icons.js";
 
@@ -298,6 +299,16 @@ export function Column({ parentId, depth }: ColumnProps) {
           >
             <PlusIcon />
           </button>
+          {node?.type === "project" && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="New sub-project"
+              onClick={() => createNode(key, "project")}
+            >
+              <FolderPlusIcon />
+            </button>
+          )}
           <button
             type="button"
             className="toggle"

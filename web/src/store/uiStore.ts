@@ -33,6 +33,14 @@ export interface UiState {
    * setting a new value abandons whatever was being typed elsewhere.
    */
   creatingParentId: string | null;
+  /**
+   * The node type that pending input will create, when it's anything other
+   * than the default inferred from creatingParentId (a project at root,
+   * a todo everywhere else) — e.g. explicitly creating a sub-project inside
+   * an open project. Null whenever creatingParentId is, or whenever the
+   * default inference is what's wanted.
+   */
+  creatingType: "project" | "todo" | null;
   select(depth: number, entry: OpenPathEntry): void;
   setColumnWidth(index: number, width: number): void;
   toggleShowCompleted(parentId: string): void;
@@ -41,7 +49,7 @@ export interface UiState {
   setActiveSmartList(list: SmartList | null): void;
   setSearchOpen(open: boolean): void;
   setHeadingExpanded(headingId: string, expanded: boolean): void;
-  setCreatingParentId(parentId: string | null): void;
+  setCreatingParentId(parentId: string | null, type?: "project" | "todo"): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -56,6 +64,7 @@ export const useUiStore = create<UiState>()(
       isSearchOpen: false,
       expandedHeadings: {},
       creatingParentId: null,
+      creatingType: null,
 
       select(depth, entry) {
         set({ openPath: [...get().openPath.slice(0, depth), entry], activeSmartList: null });
@@ -90,8 +99,8 @@ export const useUiStore = create<UiState>()(
         set({ expandedHeadings: { ...get().expandedHeadings, [headingId]: expanded } });
       },
 
-      setCreatingParentId(parentId) {
-        set({ creatingParentId: parentId });
+      setCreatingParentId(parentId, type) {
+        set({ creatingParentId: parentId, creatingType: parentId === null ? null : (type ?? null) });
       },
     }),
     { name: "tend-ui" },

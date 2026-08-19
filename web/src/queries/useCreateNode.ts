@@ -9,12 +9,14 @@ import { useRunCommand } from "./hooks.js";
  * sentinel the sidebar and columns already use. This shows a blank inline
  * title input as the last row of that list (the same input rename uses);
  * nothing is created until that input is submitted with a non-blank title
- * — see useSubmitNewNode.
+ * — see useSubmitNewNode. `type` overrides the default inference (a
+ * project at root, a todo everywhere else) — e.g. a column header's
+ * "new sub-project" button explicitly requests "project".
  */
 export function useCreateNode() {
   const setCreatingParentId = useUiStore((s) => s.setCreatingParentId);
-  return function createNode(targetParentId: string) {
-    setCreatingParentId(targetParentId);
+  return function createNode(targetParentId: string, type?: "project" | "todo") {
+    setCreatingParentId(targetParentId, type);
   };
 }
 
@@ -24,7 +26,8 @@ export function useCreateNode() {
  * no-op — CreateNode itself would reject it too, but checking here avoids a
  * round-trip and leaves the input open for another attempt instead of
  * silently closing it. Root children must be projects (invariant 3);
- * everywhere else, a todo.
+ * everywhere else, a todo, unless useCreateNode's caller requested a
+ * sub-project explicitly (creatingType).
  */
 export function useSubmitNewNode() {
   const queryClient = useQueryClient();
@@ -36,7 +39,8 @@ export function useSubmitNewNode() {
     if (trimmed === "") return;
 
     const apiParentId = targetParentId === "root" ? null : targetParentId;
-    const type: "project" | "todo" = apiParentId === null ? "project" : "todo";
+    const creatingType = useUiStore.getState().creatingType;
+    const type: "project" | "todo" = apiParentId === null ? "project" : (creatingType ?? "todo");
     const siblings = queryClient.getQueryData<ColumnRow[]>(["columns", apiParentId]) ?? [];
     const lastSortKey = siblings.at(-1)?.sortKey ?? null;
     runCommand.mutate({

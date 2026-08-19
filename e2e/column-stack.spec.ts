@@ -28,6 +28,40 @@ test("navigating into nested projects extends the column stack, and re-selecting
   await expect(page.getByText(todoInATitle)).toHaveCount(0);
 });
 
+test("the column header's New sub-project button creates a real, navigable sub-project", async ({
+  page,
+  request,
+}) => {
+  const root = await createProject(request, uniqueTitle("Root"));
+
+  await page.goto("/");
+  await page.getByText(root.title).click();
+  await page.getByRole("button", { name: "New sub-project" }).click();
+
+  const input = page.locator('input:not([type="date"])');
+  await input.fill("Frozen foods");
+  await input.press("Enter");
+
+  const subProjectRow = page.getByRole("button", { name: "Frozen foods", exact: true });
+  await expect(subProjectRow).toBeVisible();
+
+  // Navigable like any other project — a todo created inside it should show
+  // up in ITS OWN column once opened, proving it's a real project row and
+  // not, say, a todo that merely happens to be named "Frozen foods".
+  await subProjectRow.click();
+  // Root's own column is still open alongside the sub-project's — scope to
+  // the last (most recently opened) column's own "New item" button.
+  await page.getByRole("button", { name: "New item" }).last().click();
+  const todoInput = page.locator('input:not([type="date"])');
+  await todoInput.fill("Peas");
+  await todoInput.press("Enter");
+  await expect(page.getByText("Peas")).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("button", { name: root.title, exact: true }).click();
+  await expect(subProjectRow).toBeVisible();
+});
+
 test("clicking a heading expands its children inline, without opening a new column", async ({
   page,
   request,

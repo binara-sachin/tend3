@@ -275,6 +275,46 @@ describe("Column", () => {
     );
   });
 
+  it("shows a New sub-project button for an open project column, and submitting it creates a project", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    mswServer.use(
+      http.get("/api/nodes/p1", () =>
+        HttpResponse.json({
+          id: "p1",
+          type: "project",
+          title: "Groceries",
+          notes: "",
+          whenDate: null,
+          deadline: null,
+          completedAt: null,
+          path: [],
+        }),
+      ),
+    );
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "sub-1" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: "New sub-project" }));
+    const input = await screen.findByRole("textbox");
+    await user.type(input, "Frozen foods");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(capturedBody).toMatchObject({
+        type: "CreateNode",
+        payload: { parentId: "p1", type: "project", title: "Frozen foods" },
+      }),
+    );
+  });
+
   it("submitting a blank title from the + button's input does not create anything", async () => {
     stubColumn("p1", [TODO_ROW]);
     let called = false;

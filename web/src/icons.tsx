@@ -130,6 +130,20 @@ export function DocumentIcon(props: IconProps) {
   );
 }
 
+export function FolderPlusIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path
+        d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M17 11v6M14 14h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function PlusIcon(props: IconProps) {
   return (
     <svg {...base({ size: 14, ...props })}>
