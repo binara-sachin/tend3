@@ -9,7 +9,7 @@ import { useUiStore } from "../store/uiStore.js";
 import { LogbookIcon, PlusIcon, TodayIcon, TrashIcon } from "../icons.js";
 
 function TodayItem() {
-  const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.today });
+  const { setNodeRef, isOver } = useDroppable({ id: SIDEBAR_DROP_IDS.today });
   const isSelected = useUiStore((s) => s.activeSmartList === "today");
   const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
   return (
@@ -18,7 +18,7 @@ function TodayItem() {
       data-droppable-id={SIDEBAR_DROP_IDS.today}
       role="button"
       tabIndex={0}
-      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
+      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}${isOver ? " sidebar-item--drop-target" : ""}`}
       onClick={() => setActiveSmartList("today")}
     >
       <span className="sidebar-item-icon">
@@ -48,7 +48,7 @@ function LogbookItem() {
 }
 
 function TrashItem() {
-  const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.trash });
+  const { setNodeRef, isOver } = useDroppable({ id: SIDEBAR_DROP_IDS.trash });
   const isSelected = useUiStore((s) => s.activeSmartList === "trash");
   const setActiveSmartList = useUiStore((s) => s.setActiveSmartList);
   return (
@@ -57,7 +57,7 @@ function TrashItem() {
       data-droppable-id={SIDEBAR_DROP_IDS.trash}
       role="button"
       tabIndex={0}
-      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
+      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}${isOver ? " sidebar-item--drop-target" : ""}`}
       onClick={() => setActiveSmartList("trash")}
     >
       <span className="sidebar-item-icon">
@@ -164,7 +164,7 @@ function SidebarProjectRow({
 }: SidebarProjectRowProps) {
   // Inbox is a real, is_system project row — spec 6's "drop on Inbox reparents
   // there" is wired only onto it, not onto ordinary root-level projects.
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver: isInboxOver } = useDroppable({
     id: isSystem ? SIDEBAR_DROP_IDS.inbox : `sidebar-noop-${id}`,
     disabled: !isSystem,
   });
@@ -258,7 +258,7 @@ function SidebarProjectRow({
         }
       }}
       type="button"
-      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}${isWholeRowOver ? " sidebar-item--drop-target" : ""}`}
+      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}${isInboxOver || isWholeRowOver ? " sidebar-item--drop-target" : ""}`}
       data-droppable-id={isSystem ? SIDEBAR_DROP_IDS.inbox : `project-drop-${id}`}
       style={isSystem ? undefined : { transform: CSS.Transform.toString(transform), transition }}
       {...(isSystem ? undefined : attributes)}

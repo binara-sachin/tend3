@@ -44,6 +44,76 @@ async function dragRow(page: Page, from: Locator, to: Locator) {
   await page.waitForTimeout(150);
 }
 
+/**
+ * Like dragRow, but for a target that may be scrolled out of view or near a
+ * scroll container's edge (e.g. a specific row deep in the sidebar's
+ * root-project list, which grows by one entry per earlier test in this same
+ * suite run). Scrolls the target into view first, then re-reads its box
+ * partway through the drag and makes a corrective final move — dnd-kit's
+ * DndContext auto-scrolls a scrollable container as the pointer nears its
+ * edge, which can shift the target out from under coordinates computed
+ * before the drag started. (Plain dragRow deliberately skips this: for an
+ * in-column reorder, re-reading `to`'s box mid-drag would instead pick up
+ * dnd-kit's live reorder-preview position, which is a different animation,
+ * not scroll drift, and following it can overshoot onto a neighboring row.)
+ */
+async function dragOntoScrollableTarget(page: Page, from: Locator, to: Locator) {
+  await to.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100); // let the scroll settle before measuring
+  const fromBox = await from.boundingBox();
+  let toBox = await to.boundingBox();
+  if (!fromBox || !toBox) throw new Error("dragOntoScrollableTarget: source or target has no layout box");
+
+  const startX = fromBox.x + fromBox.width / 2;
+  const startY = fromBox.y + fromBox.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX, startY + 12, { steps: 5 }); // clear the activation threshold
+  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 10 });
+  await page.waitForTimeout(150);
+  toBox = (await to.boundingBox()) ?? toBox;
+  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 5 });
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+}
+
+/**
+ * Drags `from` to hover over `to`, asserts `to` gets `expectedClass`, then
+ * releases back over `from`'s own starting position so no command actually
+ * fires — the collision strategy's closestCenter fallback always resolves
+ * to *some* droppable (there's no "not over anything"), so releasing over
+ * empty space would still trigger a random drop; releasing back over the
+ * dragged row's own original spot is a guaranteed same-position no-op.
+ */
+async function dragOverAndCheckHighlight(page: Page, from: Locator, to: Locator, expectedClass: string) {
+  await from.scrollIntoViewIfNeeded();
+  await to.scrollIntoViewIfNeeded();
+  // The shared e2e database accumulates a root-level project per test run
+  // within this same suite invocation, so the sidebar's list keeps growing
+  // as the suite progresses — a brief settle after scrolling avoids reading
+  // a bounding box mid-scroll for whichever row that pushes off-screen.
+  await page.waitForTimeout(100);
+  const fromBox = await from.boundingBox();
+  const toBox = await to.boundingBox();
+  if (!fromBox || !toBox) throw new Error("dragOverAndCheckHighlight: source or target has no layout box");
+
+  const startX = fromBox.x + fromBox.width / 2;
+  const startY = fromBox.y + fromBox.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX, startY + 12, { steps: 5 }); // clear the activation threshold
+  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 10 });
+  await page.waitForTimeout(150);
+  await expect(to).toHaveClass(new RegExp(expectedClass));
+  await page.mouse.move(startX, startY, { steps: 10 }); // back to origin before releasing
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+}
+
 test("reordering within a column via pointer drag persists across a reload", async ({
   page,
   request,
@@ -134,6 +204,43 @@ test("reordering root-level projects via pointer drag persists, with Inbox pinne
   expect((await sidebarProjectTitles(page))[0]).toBe("Inbox");
 });
 
+test("dragging a task over Today, Trash, or Inbox highlights that sidebar tile", async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(request, uniqueTitle("HighlightProject"));
+  const todoTitle = uniqueTitle("HighlightTodo");
+  await createTodo(request, project.id, { title: todoTitle, sortKey: "a0" });
+
+  await page.goto("/");
+  await page.getByText(project.title).click();
+  const todoRow = page.getByRole("button", { name: todoTitle, exact: true });
+  await expect(todoRow).toBeVisible();
+
+  await dragOverAndCheckHighlight(
+    page,
+    todoRow,
+    page.getByRole("button", { name: "Today", exact: true }),
+    "sidebar-item--drop-target",
+  );
+  await dragOverAndCheckHighlight(
+    page,
+    todoRow,
+    page.getByRole("button", { name: "Trash", exact: true }),
+    "sidebar-item--drop-target",
+  );
+  await dragOverAndCheckHighlight(
+    page,
+    todoRow,
+    page.getByRole("button", { name: "Inbox", exact: true }),
+    "sidebar-item--drop-target",
+  );
+
+  // None of the hovers actually dropped (each released off-target) — the
+  // todo is still where it started.
+  await expect(todoRow).toBeVisible();
+});
+
 test("moving a root-level project into a sub-project removes it from the sidebar immediately, no reload needed", async ({
   page,
   request,
@@ -183,7 +290,7 @@ test("dragging a task onto a different root-level project's sidebar row moves it
   // a time), since ordinary sidebar rows weren't valid drop targets.
   const todoRow = page.getByRole("button", { name: todoTitle, exact: true });
   const otherProjectSidebarRow = page.getByRole("button", { name: otherProject.title, exact: true });
-  await dragRow(page, todoRow, otherProjectSidebarRow);
+  await dragOntoScrollableTarget(page, todoRow, otherProjectSidebarRow);
 
   await expect(page.getByText(todoTitle)).toHaveCount(0); // gone from openProject's column
 
