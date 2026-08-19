@@ -420,6 +420,17 @@ textarea {
 
 /* ── detail pane ───────────────────────────────────────────────────── */
 
+@keyframes detail-pane-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .detail-pane {
   width: 400px;
   flex: none;
@@ -429,6 +440,7 @@ textarea {
   flex-direction: column;
   gap: 17px;
   overflow-y: auto;
+  animation: detail-pane-slide-in 0.18s ease-out;
 }
 
 .detail-breadcrumb {
