@@ -51,6 +51,12 @@ Requires Node 20+ (developed and tested against Node 22).
 
 ```bash
 npm install
+npm run dev   # both the API server and the Vite dev server, concurrently
+```
+
+Or run them in separate terminals if you want their output unmixed:
+
+```bash
 npm run dev:server   # API server on http://localhost:3001
 npm run dev:web      # Vite dev server on http://localhost:5173, proxying /api
 ```
