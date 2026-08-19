@@ -20,6 +20,7 @@ const INBOX = {
   type: "project",
   title: "Inbox",
   isSystem: true,
+  sortKey: "a0",
   whenDate: null,
   deadline: null,
   completedAt: null,
@@ -27,7 +28,7 @@ const INBOX = {
   openDescendantCount: 0,
 };
 
-const AREA = { ...INBOX, id: "area-1", title: "Work", isSystem: false };
+const AREA = { ...INBOX, id: "area-1", title: "Work", isSystem: false, sortKey: "a1" };
 
 describe("Sidebar", () => {
   it("renders Inbox and root-level projects", async () => {
@@ -126,6 +127,28 @@ describe("Sidebar", () => {
     expect(document.querySelector('[data-droppable-id="sidebar-inbox"]')).not.toBeNull();
     expect(document.querySelector('[data-droppable-id="sidebar-trash"]')).not.toBeNull();
     expect(document.querySelector('[data-droppable-id="sidebar-logbook"]')).toBeNull();
+  });
+
+  it("gives an ordinary root-level project a drag handle, but not Inbox", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([INBOX, AREA])));
+
+    renderWithProviders(<Sidebar />);
+    await screen.findByText("Inbox");
+
+    expect(screen.getByLabelText("Drag Work")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Drag Inbox")).not.toBeInTheDocument();
+  });
+
+  it("does not wrap Inbox in the draggable row markup ordinary projects get", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([INBOX, AREA])));
+
+    renderWithProviders(<Sidebar />);
+    await screen.findByText("Inbox");
+
+    const inboxRow = screen.getByText("Inbox").closest("li");
+    const workRow = screen.getByText("Work").closest("li");
+    expect(inboxRow?.className).not.toContain("row");
+    expect(workRow?.className).toContain("row");
   });
 
   it("the New Project button creates a new root-level project", async () => {

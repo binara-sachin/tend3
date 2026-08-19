@@ -75,7 +75,8 @@ textarea {
   display: flex;
   align-items: center;
   gap: 9px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 7px 11px;
   border-radius: var(--radius-md);
   font-size: 14px;

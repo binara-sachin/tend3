@@ -28,6 +28,13 @@ import { resolveSidebarDrop, todayDateString } from "./sidebarActions.js";
 
 const WHOLE_ROW_DROP_PREFIX = "project-drop-";
 
+// The UI-layer "root" sentinel (also used in sortable item data for the
+// sidebar's root-level project list) isn't a real cache key — the column
+// cache is keyed by the actual API parentId, null for root.
+function toApiParentId(uiParentId: string): string | null {
+  return uiParentId === "root" ? null : uiParentId;
+}
+
 /**
  * Prioritizes a whole-row "drop into project" target whenever the pointer is
  * literally within its bounds; falls back to the sortable list's own
@@ -84,7 +91,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
       runCommand.mutate({
         type: sidebarCommand.type,
         payload: sidebarCommand.payload,
-        parentId: activeData.parentId,
+        parentId: toApiParentId(activeData.parentId),
       });
       return;
     }
@@ -97,7 +104,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
       runCommand.mutate({
         type: "MoveNode",
         payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
-        parentId: resolved.parentId,
+        parentId: toApiParentId(resolved.parentId),
       });
       return;
     }
@@ -106,7 +113,8 @@ export function DragProvider({ children }: { children: ReactNode }) {
     if (!overData) return;
 
     if (activeData.parentId === overData.parentId) {
-      const siblings = queryClient.getQueryData<ColumnRow[]>(["columns", overData.parentId]) ?? [];
+      const siblings =
+        queryClient.getQueryData<ColumnRow[]>(["columns", toApiParentId(overData.parentId)]) ?? [];
       const resolved = resolveSameColumnReorder(
         nodeId,
         overIdStr,
@@ -118,7 +126,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
       runCommand.mutate({
         type: "MoveNode",
         payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
-        parentId: resolved.parentId,
+        parentId: toApiParentId(resolved.parentId),
       });
       return;
     }
@@ -132,14 +140,15 @@ export function DragProvider({ children }: { children: ReactNode }) {
       over.rect.top,
       over.rect.height,
     );
-    const siblings = queryClient.getQueryData<ColumnRow[]>(["columns", overData.parentId]) ?? [];
+    const siblings =
+      queryClient.getQueryData<ColumnRow[]>(["columns", toApiParentId(overData.parentId)]) ?? [];
     const resolved = resolveCrossColumnInsertion(overIdStr, overData.parentId, side, siblings);
     if (!resolved) return;
 
     runCommand.mutate({
       type: "MoveNode",
       payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
-      parentId: resolved.parentId,
+      parentId: toApiParentId(resolved.parentId),
     });
   }
 

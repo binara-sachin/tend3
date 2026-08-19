@@ -14,6 +14,11 @@ function rowTitles(page: import("@playwright/test").Page) {
   return page.locator("[data-row='true']").allTextContents();
 }
 
+/** The sidebar's root-level project list, in DOM order — includes Inbox and every other test's accumulated fixtures. */
+function sidebarProjectTitles(page: import("@playwright/test").Page) {
+  return page.locator("nav ul").nth(1).locator(".sidebar-item").allTextContents();
+}
+
 test("reordering within a column via the keyboard sensor persists across a reload", async ({
   page,
   request,
@@ -48,6 +53,70 @@ test("reordering within a column via the keyboard sensor persists across a reloa
   await page.getByRole("button", { name: project.title, exact: true }).click();
   const afterReload = await rowTitles(page);
   expect(afterReload).toEqual(reordered); // the reorder round-tripped the server
+});
+
+test("reordering root-level projects via the keyboard sensor persists, with Inbox pinned first", async ({
+  page,
+}) => {
+  const firstTitle = uniqueTitle("SidebarFirst");
+  const secondTitle = uniqueTitle("SidebarSecond");
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Inbox", exact: true }).waitFor();
+
+  // Created through the real "+ New Project" UI flow (not a raw API call
+  // with a hardcoded sortKey) specifically so both rows get real,
+  // guaranteed-distinct sortKeys via sortKeyAfter — the shared e2e database
+  // accumulates many root-level projects across the whole suite run, and
+  // several other spec files' fixtures share a hardcoded "a0" sortKey, which
+  // made an earlier version of this test flaky: reordering against a
+  // same-keyed neighbor asks the fractional-indexing library for a key
+  // strictly between two equal keys, which it rejects.
+  async function createRootProjectViaUi(title: string) {
+    await page.getByRole("button", { name: "New Project", exact: true }).click();
+    const newRow = page.locator("nav ul").nth(1).getByRole("button", { name: "", exact: true });
+    await newRow.click();
+    await page.keyboard.press("Enter");
+    const renameInput = page.locator('input:not([type="date"])');
+    await renameInput.waitFor();
+    await renameInput.fill(title);
+    await renameInput.press("Enter");
+    await expect(page.getByRole("button", { name: title, exact: true })).toBeVisible();
+  }
+
+  await createRootProjectViaUi(firstTitle);
+  await createRootProjectViaUi(secondTitle);
+
+  const before = await sidebarProjectTitles(page);
+  expect(before[0]).toBe("Inbox");
+  expect(before.indexOf(firstTitle)).toBeLessThan(before.indexOf(secondTitle));
+
+  const dragHandle = page.getByLabel(`Drag ${secondTitle}`);
+  await dragHandle.focus();
+  await page.keyboard.press("Space"); // pick up
+  await page.waitForTimeout(150);
+  await page.keyboard.press("ArrowUp"); // move above "first"
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Space"); // drop
+
+  // The drop fires a MoveNode command and refetches the sidebar's root
+  // column — poll instead of a fixed wait for that round-trip.
+  await expect
+    .poll(async () => {
+      const titles = await sidebarProjectTitles(page);
+      return titles.indexOf(secondTitle) < titles.indexOf(firstTitle);
+    })
+    .toBe(true);
+  expect((await sidebarProjectTitles(page))[0]).toBe("Inbox"); // still pinned first, never displaced
+
+  await page.reload();
+  await expect
+    .poll(async () => {
+      const titles = await sidebarProjectTitles(page);
+      return titles.indexOf(secondTitle) < titles.indexOf(firstTitle);
+    })
+    .toBe(true);
+  expect((await sidebarProjectTitles(page))[0]).toBe("Inbox");
 });
 
 test("reparenting onto a project row via the keyboard sensor moves the todo into it", async ({

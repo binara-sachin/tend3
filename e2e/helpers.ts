@@ -32,13 +32,14 @@ export function uniqueTitle(prefix: string): string {
 export async function createProject(
   request: APIRequestContext,
   title: string,
+  sortKey = "a0",
 ): Promise<NodeDetail> {
   return runCommand(request, "CreateNode", {
     parentId: null,
     type: "project",
     title,
     notes: "",
-    sortKey: "a0",
+    sortKey,
     whenDate: null,
     deadline: null,
   });
