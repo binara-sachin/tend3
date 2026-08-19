@@ -66,6 +66,50 @@ describe("useKeyboardShortcuts", () => {
     });
   });
 
+  it("Space is ignored while a text input has focus (e.g. mid-rename), so typing a space doesn't toggle completion", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["columns", "p1"], [{ id: "todo-1", completedAt: null }]);
+    useUiStore.getState().setActiveSelection({ parentId: "p1", nodeId: "todo-1", type: "todo" });
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    renderShortcuts(queryClient);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    await userEvent.keyboard(" ");
+
+    expect(called).toBe(false);
+    document.body.removeChild(input);
+  });
+
+  it("Space is ignored while a textarea has focus", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["columns", "p1"], [{ id: "todo-1", completedAt: null }]);
+    useUiStore.getState().setActiveSelection({ parentId: "p1", nodeId: "todo-1", type: "todo" });
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    renderShortcuts(queryClient);
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    textarea.focus();
+
+    await userEvent.keyboard(" ");
+
+    expect(called).toBe(false);
+    document.body.removeChild(textarea);
+  });
+
   it("Space does nothing when the selection is a project", async () => {
     const queryClient = new QueryClient();
     useUiStore.getState().setActiveSelection({ parentId: "p1", nodeId: "proj-1", type: "project" });
@@ -95,6 +139,27 @@ describe("useKeyboardShortcuts", () => {
       type: "TrashNode",
       payload: { nodeId: "todo-1" },
     });
+  });
+
+  it("Cmd+Backspace is ignored while a text input has focus (macOS's native delete-to-line-start there)", async () => {
+    const queryClient = new QueryClient();
+    useUiStore.getState().setActiveSelection({ parentId: "p1", nodeId: "todo-1", type: "todo" });
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    renderShortcuts(queryClient);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    await userEvent.keyboard("{Meta>}{Backspace}{/Meta}");
+
+    expect(called).toBe(false);
+    document.body.removeChild(input);
   });
 
   it("Cmd+N creates inside the focused column when nothing is selected yet (e.g. an empty column)", async () => {

@@ -35,6 +35,16 @@ export function useKeyboardShortcuts(): void {
 
     function onKeyDown(e: KeyboardEvent) {
       const { activeSelection: selection, focusedColumnParentId } = useUiStore.getState();
+      const target = document.activeElement;
+      const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+
+      // Space (type a space while renaming/editing notes) and Cmd+Backspace
+      // (macOS's native delete-to-line-start in a text field) both have a
+      // real, expected meaning while typing — never let them fall through
+      // to the row-level shortcuts below.
+      if (isTextField && (e.key === " " || (e.metaKey && e.key === "Backspace"))) {
+        return;
+      }
 
       if (e.key === " " && !e.metaKey) {
         if (!selection || selection.type !== "todo") return;
@@ -60,8 +70,6 @@ export function useKeyboardShortcuts(): void {
       }
 
       if (e.metaKey && e.key.toLowerCase() === "z") {
-        const target = document.activeElement;
-        const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
         if (isTextField) return;
         e.preventDefault();
         if (e.shiftKey) {
