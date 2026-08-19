@@ -123,7 +123,7 @@ describe("ColumnStack", () => {
     expect(groceries).toHaveFocus();
   });
 
-  it("renders a focusable drag handle per row, wired for dnd-kit's keyboard sensor", async () => {
+  it("makes the whole row focusable and draggable, wired for dnd-kit's keyboard sensor", async () => {
     // The actual pick-up/move/drop interaction needs real element layout to
     // resolve "which item is next" — jsdom reports every element as a
     // zero-size rect, so dnd-kit's keyboard sensor can't be exercised
@@ -137,7 +137,11 @@ describe("ColumnStack", () => {
 
     renderWithProviders(<ColumnStack />);
 
-    const handle = await screen.findByLabelText("Drag Buy milk");
-    expect(handle).toHaveAttribute("tabindex", "0");
+    // There's no separate drag handle any more — the row itself is the
+    // sortable node, identifiable by dnd-kit's own "sortable" role
+    // description rather than a dedicated "Drag X" label.
+    const rowEl = await screen.findByRole("button", { name: "Buy milk" });
+    expect(rowEl).toHaveAttribute("tabindex", "0");
+    expect(rowEl).toHaveAttribute("aria-roledescription", "sortable");
   });
 });

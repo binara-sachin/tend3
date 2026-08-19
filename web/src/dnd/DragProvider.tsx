@@ -65,8 +65,18 @@ export function DragProvider({ children }: { children: ReactNode }) {
   const [activeItem, setActiveItem] = useState<SortableItemData | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    // A distance threshold, rather than activating on the first pixel of
+    // movement, is what lets a plain click on the row (select/open) coexist
+    // with click-and-drag from the same element now that there's no
+    // separate drag handle.
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      // Excludes Enter (dnd-kit's other default pickup/drop key) since Enter
+      // on a row now exclusively means "start rename" — there's no longer a
+      // separate handle element to give it a second meaning on.
+      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] },
+    }),
   );
 
   function handleDragStart(event: DragStartEvent) {

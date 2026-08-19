@@ -152,14 +152,19 @@ describe("Sidebar", () => {
     expect(document.querySelector('[data-droppable-id="sidebar-logbook"]')).toBeNull();
   });
 
-  it("gives an ordinary root-level project a drag handle, but not Inbox", async () => {
+  it("makes an ordinary root-level project draggable, but not Inbox", async () => {
     mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([INBOX, AREA])));
 
     renderWithProviders(<Sidebar />);
     await screen.findByText("Inbox");
 
-    expect(screen.getByLabelText("Drag Work")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Drag Inbox")).not.toBeInTheDocument();
+    // There's no separate drag handle any more — draggability shows up as
+    // dnd-kit's own "sortable" role description on the row itself.
+    expect(screen.getByRole("button", { name: "Work" })).toHaveAttribute(
+      "aria-roledescription",
+      "sortable",
+    );
+    expect(screen.getByRole("button", { name: "Inbox" })).not.toHaveAttribute("aria-roledescription");
   });
 
   it("does not wrap Inbox in the draggable row markup ordinary projects get", async () => {

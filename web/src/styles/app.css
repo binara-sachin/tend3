@@ -97,6 +97,12 @@ textarea {
   color: var(--color-accent-300);
 }
 
+/* only ordinary root-level projects are wrapped in `li.row` — Today,
+   Logbook, Trash, and Inbox aren't draggable */
+.row .sidebar-item {
+  cursor: grab;
+}
+
 .sidebar-item-icon {
   flex: none;
   display: flex;
@@ -293,7 +299,7 @@ textarea {
   min-width: 0;
   padding: 8px 8px;
   border-radius: var(--radius-md);
-  cursor: pointer;
+  cursor: grab;
   background: transparent;
 }
 
@@ -322,19 +328,6 @@ textarea {
 
 .row-main--heading:hover {
   background: transparent;
-}
-
-.row-drag-handle {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  padding: 0;
-  color: color-mix(in srgb, var(--color-text) 25%, transparent);
-  background: transparent;
-  border: none;
-  cursor: grab;
 }
 
 .row-icon {

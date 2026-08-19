@@ -14,7 +14,6 @@ import {
   ChevronRightIcon,
   CircleIcon,
   DocumentIcon,
-  DragHandleIcon,
   FolderIcon,
   PlusIcon,
 } from "../icons.js";
@@ -92,17 +91,10 @@ function Row({
         className={`row${isNested && row.type !== "heading" ? " row--nested" : ""}${isDragging ? " row--dragging" : ""}`}
         style={{ transform: CSS.Transform.toString(transform), transition }}
       >
-      <button
-        type="button"
-        className="row-drag-handle"
-        aria-label={`Drag ${row.title}`}
-        {...attributes}
-        {...listeners}
-      >
-        <DragHandleIcon />
-      </button>
       <div
         ref={row.type === "project" ? setWholeRowDropRef : undefined}
+        {...attributes}
+        {...listeners}
         role="button"
         tabIndex={0}
         data-row="true"
@@ -110,6 +102,11 @@ function Row({
         className={`row-main${row.type === "heading" ? " row-main--heading" : ""}${isWholeRowOver ? " row-main--drop-target" : ""}`}
         onClick={onSelect}
         onKeyDown={(e) => {
+          // dnd-kit's keyboard sensor (Space to pick up/drop) is wired onto
+          // this same element via `listeners` — it filters by key code
+          // internally, so it's safe to always forward the event to it
+          // alongside this row's own Enter/Arrow handling.
+          listeners?.onKeyDown?.(e);
           if (e.key === "Enter") {
             onStartRename();
             return;

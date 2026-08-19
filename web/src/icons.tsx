@@ -130,27 +130,6 @@ export function DocumentIcon(props: IconProps) {
   );
 }
 
-export function DragHandleIcon(props: IconProps) {
-  return (
-    <svg
-      width={9}
-      height={13}
-      viewBox="0 0 12 16"
-      fill="currentColor"
-      aria-hidden
-      focusable={false}
-      {...props}
-    >
-      <circle cx="3" cy="3" r="1.3" />
-      <circle cx="9" cy="3" r="1.3" />
-      <circle cx="3" cy="8" r="1.3" />
-      <circle cx="9" cy="8" r="1.3" />
-      <circle cx="3" cy="13" r="1.3" />
-      <circle cx="9" cy="13" r="1.3" />
-    </svg>
-  );
-}
-
 export function PlusIcon(props: IconProps) {
   return (
     <svg {...base({ size: 14, ...props })}>

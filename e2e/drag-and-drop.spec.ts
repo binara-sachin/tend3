@@ -36,7 +36,9 @@ test("reordering within a column via the keyboard sensor persists across a reloa
   await expect(page.getByText(titleC)).toBeVisible();
   expect(await rowTitles(page)).toEqual([titleA, titleB, titleC]);
 
-  const dragHandleA = page.getByLabel(`Drag ${titleA}`);
+  // There's no separate drag handle — the row itself is the sortable node,
+  // focusable and keyboard-activatable directly.
+  const dragHandleA = page.getByRole("button", { name: titleA, exact: true });
   await dragHandleA.focus();
   await page.keyboard.press("Space"); // pick up
   await page.waitForTimeout(150);
@@ -88,7 +90,7 @@ test("reordering root-level projects via the keyboard sensor persists, with Inbo
   expect(before[0]).toBe("Inbox");
   expect(before.indexOf(firstTitle)).toBeLessThan(before.indexOf(secondTitle));
 
-  const dragHandle = page.getByLabel(`Drag ${secondTitle}`);
+  const dragHandle = page.getByRole("button", { name: secondTitle, exact: true });
   await dragHandle.focus();
   await page.keyboard.press("Space"); // pick up
   await page.waitForTimeout(150);
@@ -130,7 +132,7 @@ test("reparenting onto a project row via the keyboard sensor moves the todo into
   await expect(page.getByText(todoTitle)).toBeVisible();
   await expect(page.getByText(target.title)).toBeVisible();
 
-  const dragHandle = page.getByLabel(`Drag ${todoTitle}`);
+  const dragHandle = page.getByRole("button", { name: todoTitle, exact: true });
   await dragHandle.focus();
   await page.keyboard.press("Space"); // pick up
   await page.keyboard.press("ArrowDown"); // move onto/past the target project row

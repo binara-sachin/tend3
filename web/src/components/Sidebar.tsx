@@ -6,7 +6,7 @@ import { useColumn, useRunCommand } from "../queries/hooks.js";
 import { useCreateNode, useSubmitNewNode } from "../queries/useCreateNode.js";
 import { SIDEBAR_DROP_IDS } from "../dnd/sidebarActions.js";
 import { useUiStore } from "../store/uiStore.js";
-import { DragHandleIcon, LogbookIcon, PlusIcon, TodayIcon, TrashIcon } from "../icons.js";
+import { LogbookIcon, PlusIcon, TodayIcon, TrashIcon } from "../icons.js";
 
 function TodayItem() {
   const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.today });
@@ -222,8 +222,16 @@ function SidebarProjectRow({
       className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
       data-droppable-id={isSystem ? SIDEBAR_DROP_IDS.inbox : undefined}
       style={isSystem ? undefined : { transform: CSS.Transform.toString(transform), transition }}
+      {...(isSystem ? undefined : attributes)}
+      {...(isSystem ? undefined : listeners)}
       onClick={onSelect}
       onKeyDown={(e) => {
+        // dnd-kit's keyboard sensor (Space to pick up/drop) is wired onto
+        // this same element via `listeners` — it filters by key code
+        // internally, so it's safe to always forward the event to it
+        // alongside this button's own Enter-to-rename handling. `listeners`
+        // is undefined for Inbox (drag disabled), so this is a no-op there.
+        listeners?.onKeyDown?.(e);
         if (e.key === "Enter") {
           e.preventDefault(); // suppress the native click-on-Enter; rename, don't (also) select-navigate
           setIsRenaming(true);
@@ -238,12 +246,5 @@ function SidebarProjectRow({
     return <li>{row}</li>;
   }
 
-  return (
-    <li className="row">
-      <button type="button" className="row-drag-handle" aria-label={`Drag ${title}`} {...attributes} {...listeners}>
-        <DragHandleIcon />
-      </button>
-      {row}
-    </li>
-  );
+  return <li className="row">{row}</li>;
 }
