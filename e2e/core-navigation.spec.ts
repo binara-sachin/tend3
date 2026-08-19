@@ -61,6 +61,48 @@ test("clicking outside the rename input commits it, and Escape cancels without a
   await expect(page.getByText("Should never be saved")).toHaveCount(0);
 });
 
+test("clicking blank column space dismisses the task detail pane", async ({ page, request }) => {
+  const project = await createProject(request, uniqueTitle("Project"));
+  const todoTitle = uniqueTitle("Todo");
+  await createTodo(request, project.id, { title: todoTitle, sortKey: "a0" });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  await page.getByText(todoTitle).click();
+  await expect(page.locator(".detail-pane")).toBeVisible();
+
+  // Below the last row, inside the column's own body — not on any row.
+  await page.locator(".column-body").click({ position: { x: 200, y: 400 } });
+
+  await expect(page.locator(".detail-pane")).toHaveCount(0);
+  // The row itself is untouched (still there, no longer shown selected) —
+  // this only clears the selection, it doesn't delete or hide the todo.
+  await expect(page.getByText(todoTitle)).toBeVisible();
+});
+
+test("switching to a different todo swaps the detail pane's content without dismissing it first", async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(request, uniqueTitle("Project"));
+  const firstTitle = uniqueTitle("First");
+  const secondTitle = uniqueTitle("Second");
+  await createTodo(request, project.id, { title: firstTitle, sortKey: "a0" });
+  await createTodo(request, project.id, { title: secondTitle, sortKey: "a1" });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  await page.getByText(firstTitle).click();
+  await expect(page.locator(".detail-title")).toHaveText(firstTitle);
+
+  // Never disappears at any point during the switch — a single detail pane,
+  // still visible, whose content just swaps in place.
+  await page.getByText(secondTitle).click();
+  await expect(page.locator(".detail-pane")).toBeVisible();
+  await expect(page.locator(".detail-title")).toHaveText(secondTitle);
+  await expect(page.locator(".detail-pane")).toHaveCount(1);
+});
+
 test("editing notes in the detail pane persists across a reload", async ({ page, request }) => {
   const project = await createProject(request, uniqueTitle("Project"));
   const todoTitle = uniqueTitle("Todo");

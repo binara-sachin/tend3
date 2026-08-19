@@ -431,6 +431,17 @@ textarea {
   }
 }
 
+@keyframes detail-pane-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
 .detail-pane {
   width: 400px;
   flex: none;
@@ -441,6 +452,10 @@ textarea {
   gap: 17px;
   overflow-y: auto;
   animation: detail-pane-slide-in 0.18s ease-out;
+}
+
+.detail-pane--closing {
+  animation: detail-pane-slide-out 0.18s ease-in forwards;
 }
 
 .detail-breadcrumb {

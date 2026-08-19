@@ -1,5 +1,5 @@
 import { ColumnStack } from "./components/ColumnStack.js";
-import { DetailPane } from "./components/DetailPane.js";
+import { DetailPaneHost } from "./components/DetailPaneHost.js";
 import { LogbookView } from "./components/LogbookView.js";
 import { SearchPalette } from "./components/SearchPalette.js";
 import { Sidebar } from "./components/Sidebar.js";
@@ -11,10 +11,7 @@ import { useUiStore } from "./store/uiStore.js";
 
 export function App() {
   useKeyboardShortcuts();
-  const openPath = useUiStore((s) => s.openPath);
   const activeSmartList = useUiStore((s) => s.activeSmartList);
-  const lastEntry = openPath.at(-1);
-  const lastProjectEntry = [...openPath].reverse().find((e) => e.type === "project");
 
   return (
     <DragProvider>
@@ -25,9 +22,7 @@ export function App() {
         {activeSmartList === "logbook" && <LogbookView />}
         {activeSmartList === "trash" && <TrashView />}
         {activeSmartList === null && <ColumnStack />}
-        {activeSmartList === null && lastEntry?.type === "todo" && (
-          <DetailPane nodeId={lastEntry.id} parentId={lastProjectEntry?.id ?? "root"} />
-        )}
+        {activeSmartList === null && <DetailPaneHost />}
       </div>
     </DragProvider>
   );

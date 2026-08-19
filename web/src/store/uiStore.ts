@@ -50,6 +50,8 @@ export interface UiState {
   setSearchOpen(open: boolean): void;
   setHeadingExpanded(headingId: string, expanded: boolean): void;
   setCreatingParentId(parentId: string | null, type?: "project" | "todo"): void;
+  /** Deselects the currently open todo (its detail pane), leaving the column stack it was opened from untouched. A no-op if the current selection isn't a todo. */
+  deselectTodo(): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -101,6 +103,12 @@ export const useUiStore = create<UiState>()(
 
       setCreatingParentId(parentId, type) {
         set({ creatingParentId: parentId, creatingType: parentId === null ? null : (type ?? null) });
+      },
+
+      deselectTodo() {
+        const path = get().openPath;
+        if (path.at(-1)?.type !== "todo") return;
+        set({ openPath: path.slice(0, -1), activeSelection: null });
       },
     }),
     { name: "tend-ui" },

@@ -5,9 +5,11 @@ import { CalendarIcon } from "../icons.js";
 export interface DetailPaneProps {
   nodeId: string;
   parentId: string;
+  /** Plays the slide-out animation in place of the slide-in one — DetailPaneHost keeps this mounted briefly after deselection so the animation has time to run. */
+  closing?: boolean;
 }
 
-export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
+export function DetailPane({ nodeId, parentId, closing = false }: DetailPaneProps) {
   const { data: node, isError } = useNode(nodeId);
   const runCommand = useRunCommand();
   const [notes, setNotes] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
   const breadcrumb = [...node.path].reverse().map((a) => a.title);
 
   return (
-    <div className="detail-pane">
+    <div className={`detail-pane${closing ? " detail-pane--closing" : ""}`}>
       {breadcrumb.length > 0 && <div className="detail-breadcrumb">{breadcrumb.join(" / ")}</div>}
       <div>
         <div className="detail-type-label">{node.type}</div>
