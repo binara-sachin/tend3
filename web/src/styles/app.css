@@ -421,7 +421,7 @@ textarea {
 /* ── detail pane ───────────────────────────────────────────────────── */
 
 .detail-pane {
-  width: 340px;
+  width: 400px;
   flex: none;
   background: var(--color-surface);
   padding: 22px;
@@ -483,14 +483,14 @@ textarea {
   outline-offset: 0;
 }
 
-.detail-date-row {
+.detail-date-fields {
   display: flex;
-  gap: 11px;
+  flex-direction: column;
+  gap: 17px;
 }
 
 .detail-date-field {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
 }
 
 .date-input {

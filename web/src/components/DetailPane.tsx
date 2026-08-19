@@ -55,7 +55,7 @@ export function DetailPane({ nodeId, parentId }: DetailPaneProps) {
           }
         />
       </div>
-      <div className="detail-date-row">
+      <div className="detail-date-fields">
         <div className="detail-date-field">
           <label className="field-label" htmlFor={`detail-when-${nodeId}`}>
             When
