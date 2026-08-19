@@ -1,9 +1,10 @@
 import { useDroppable } from "@dnd-kit/core";
 import { useEffect, useState } from "react";
 import { useColumn, useRunCommand } from "../queries/hooks.js";
+import { useCreateNode } from "../queries/useCreateNode.js";
 import { SIDEBAR_DROP_IDS } from "../dnd/sidebarActions.js";
 import { useUiStore } from "../store/uiStore.js";
-import { LogbookIcon, TodayIcon, TrashIcon } from "../icons.js";
+import { LogbookIcon, PlusIcon, TodayIcon, TrashIcon } from "../icons.js";
 
 function TodayItem() {
   const { setNodeRef } = useDroppable({ id: SIDEBAR_DROP_IDS.today });
@@ -72,6 +73,7 @@ export function Sidebar() {
   const setFocusedColumnParentId = useUiStore((s) => s.setFocusedColumnParentId);
   const activeSmartList = useUiStore((s) => s.activeSmartList);
   const openRootId = useUiStore((s) => s.openPath[0]?.id);
+  const createNode = useCreateNode();
 
   // The sidebar renders depth 0 of the tree (spec 1) but is never a
   // Column, so nothing else ever gives Cmd+N a root-level target — this is
@@ -90,6 +92,14 @@ export function Sidebar() {
       </ul>
       <div className="sidebar-divider" />
       <ul className="list-reset">
+        <li>
+          <button type="button" className="sidebar-item" onClick={() => createNode("root")}>
+            <span className="sidebar-item-icon">
+              <PlusIcon size={13} />
+            </span>
+            New Project
+          </button>
+        </li>
         {(rows ?? []).map((row) => (
           <SidebarProjectRow
             key={row.id}

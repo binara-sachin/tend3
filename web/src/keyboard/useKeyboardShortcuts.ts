@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { firstSortKey, sortKeyAfter } from "../../../lib/sortKey.js";
 import { useRedo, useRunCommand, useUndo } from "../queries/hooks.js";
+import { useCreateNode } from "../queries/useCreateNode.js";
 import { useUiStore } from "../store/uiStore.js";
 
 interface CachedRow {
@@ -16,6 +16,7 @@ export function useKeyboardShortcuts(): void {
   const runCommand = useRunCommand();
   const undo = useUndo();
   const redo = useRedo();
+  const createNode = useCreateNode();
 
   useEffect(() => {
     // "root" is the same string sentinel /api/columns/:parentId already
@@ -30,27 +31,6 @@ export function useKeyboardShortcuts(): void {
 
     function siblingsOf(targetParentId: string): CachedRow[] {
       return queryClient.getQueryData<CachedRow[]>(["columns", toApiParentId(targetParentId)]) ?? [];
-    }
-
-    function createNode(targetParentId: string) {
-      const apiParentId = toApiParentId(targetParentId);
-      // Invariant 3 (root nodes are always project): creating directly at
-      // the root must produce a project, not a todo.
-      const type: "project" | "todo" = apiParentId === null ? "project" : "todo";
-      const lastSortKey = siblingsOf(targetParentId).at(-1)?.sortKey ?? null;
-      runCommand.mutate({
-        type: "CreateNode",
-        payload: {
-          parentId: apiParentId,
-          type,
-          title: "",
-          notes: "",
-          sortKey: lastSortKey ? sortKeyAfter(lastSortKey) : firstSortKey(),
-          whenDate: null,
-          deadline: null,
-        },
-        parentId: apiParentId,
-      });
     }
 
     function onKeyDown(e: KeyboardEvent) {
@@ -118,5 +98,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [queryClient, runCommand, undo, redo]);
+  }, [queryClient, runCommand, undo, redo, createNode]);
 }

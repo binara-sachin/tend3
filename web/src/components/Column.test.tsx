@@ -152,6 +152,29 @@ describe("Column", () => {
     expect(document.querySelector('[data-droppable-id="project-drop-proj-1"]')).not.toBeNull();
   });
 
+  it("the header's + button creates a new node as a child of this column", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "new-1" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: /new item/i }));
+
+    await waitFor(() =>
+      expect(capturedBody).toMatchObject({
+        type: "CreateNode",
+        payload: { parentId: "p1", type: "todo", title: "" },
+      }),
+    );
+  });
+
   it("does not register a whole-row drop target for todo rows", async () => {
     stubColumn("p1", [TODO_ROW]);
 

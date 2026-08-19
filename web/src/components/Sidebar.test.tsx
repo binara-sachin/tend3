@@ -127,4 +127,25 @@ describe("Sidebar", () => {
     expect(document.querySelector('[data-droppable-id="sidebar-trash"]')).not.toBeNull();
     expect(document.querySelector('[data-droppable-id="sidebar-logbook"]')).toBeNull();
   });
+
+  it("the New Project button creates a new root-level project", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "new-1" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Sidebar />);
+    await screen.findByText("Work");
+    await user.click(screen.getByRole("button", { name: /new project/i }));
+
+    expect(capturedBody).toMatchObject({
+      type: "CreateNode",
+      payload: { parentId: null, type: "project", title: "" },
+    });
+  });
 });

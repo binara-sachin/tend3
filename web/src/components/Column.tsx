@@ -3,6 +3,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
 import { useColumn, useNode, useRunCommand } from "../queries/hooks.js";
+import { useCreateNode } from "../queries/useCreateNode.js";
 import { useUiStore } from "../store/uiStore.js";
 import type { ColumnRow } from "../../../queries/getColumn.js";
 import { formatColumnDueBadge } from "../format/dueBadge.js";
@@ -15,6 +16,7 @@ import {
   DocumentIcon,
   DragHandleIcon,
   FolderIcon,
+  PlusIcon,
 } from "../icons.js";
 
 function columnKey(parentId: string | null): string {
@@ -237,6 +239,7 @@ export function Column({ parentId, depth }: ColumnProps) {
   const showCompleted = useUiStore((s) => s.showCompleted[key] ?? false);
   const toggleShowCompleted = useUiStore((s) => s.toggleShowCompleted);
   const setFocusedColumnParentId = useUiStore((s) => s.setFocusedColumnParentId);
+  const createNode = useCreateNode();
 
   useEffect(() => {
     setFocusedColumnParentId(key);
@@ -246,17 +249,27 @@ export function Column({ parentId, depth }: ColumnProps) {
     <div className="column" onClick={() => setFocusedColumnParentId(key)}>
       <div className="column-header">
         <span className="column-title">{node?.title ?? ""}</span>
-        <button
-          type="button"
-          className="toggle"
-          aria-pressed={showCompleted}
-          onClick={() => toggleShowCompleted(key)}
-        >
-          Show completed
-          <span className="toggle-track">
-            <span className="toggle-thumb" />
-          </span>
-        </button>
+        <div className="column-header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="New item"
+            onClick={() => createNode(key)}
+          >
+            <PlusIcon />
+          </button>
+          <button
+            type="button"
+            className="toggle"
+            aria-pressed={showCompleted}
+            onClick={() => toggleShowCompleted(key)}
+          >
+            Show completed
+            <span className="toggle-track">
+              <span className="toggle-thumb" />
+            </span>
+          </button>
+        </div>
       </div>
       <div className="column-body">
         <ColumnBody parentId={parentId} depth={depth} />
