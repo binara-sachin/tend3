@@ -119,3 +119,15 @@ describe("setHeadingExpanded", () => {
     expect(useUiStore.getState().expandedHeadings.h1).toBe(false);
   });
 });
+
+describe("setCreatingParentId", () => {
+  it("defaults to null, and records/clears which list is showing a pending-create input", () => {
+    expect(useUiStore.getState().creatingParentId).toBeNull();
+
+    useUiStore.getState().setCreatingParentId("p1");
+    expect(useUiStore.getState().creatingParentId).toBe("p1");
+
+    useUiStore.getState().setCreatingParentId(null);
+    expect(useUiStore.getState().creatingParentId).toBeNull();
+  });
+});

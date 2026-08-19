@@ -74,13 +74,10 @@ test("reordering root-level projects via the keyboard sensor persists, with Inbo
   // strictly between two equal keys, which it rejects.
   async function createRootProjectViaUi(title: string) {
     await page.getByRole("button", { name: "New Project", exact: true }).click();
-    const newRow = page.locator("nav ul").nth(1).getByRole("button", { name: "", exact: true });
-    await newRow.click();
-    await page.keyboard.press("Enter");
-    const renameInput = page.locator('input:not([type="date"])');
-    await renameInput.waitFor();
-    await renameInput.fill(title);
-    await renameInput.press("Enter");
+    const newInput = page.locator('input:not([type="date"])');
+    await newInput.waitFor();
+    await newInput.fill(title);
+    await newInput.press("Enter");
     await expect(page.getByRole("button", { name: title, exact: true })).toBeVisible();
   }
 

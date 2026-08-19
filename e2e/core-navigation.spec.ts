@@ -56,20 +56,12 @@ test("Cmd+N at the sidebar level creates a new root-level project", async ({ pag
   await page.getByText(existing.title).click(); // selects it, parentId "root"
   await page.keyboard.press("Meta+n");
 
-  // The new project is created with a blank title — same two-step
-  // click-then-Enter rename flow as a freshly created todo, not an
-  // automatic focus/rename. Identify it by its (empty) accessible name
-  // rather than position: the shared E2E database accumulates root-level
-  // projects across the whole suite run, but every other fixture uses
-  // uniqueTitle() and is never blank.
-  const newRow = page.locator("nav ul").nth(1).getByRole("button", { name: "", exact: true });
-  await expect(newRow).toHaveCount(1);
-  await newRow.click();
-  await page.keyboard.press("Enter");
-  const renameInput = page.locator('input:not([type="date"])');
-  await renameInput.waitFor();
-  await renameInput.fill("Brand New Project");
-  await renameInput.press("Enter");
+  // Cmd+N opens a blank title input immediately — nothing is created until
+  // it's submitted with a non-blank title (empty titles are rejected).
+  const newInput = page.locator('input:not([type="date"])');
+  await newInput.waitFor();
+  await newInput.fill("Brand New Project");
+  await newInput.press("Enter");
 
   // Selecting it earlier already opened its column, so the sidebar entry
   // and the column header both now show the title — scope to the sidebar
@@ -82,6 +74,32 @@ test("Cmd+N at the sidebar level creates a new root-level project", async ({ pag
   await expect(sidebarEntry).toBeVisible();
   await sidebarEntry.click();
   await expect(page.getByRole("button", { name: "Show completed" })).toBeVisible();
+});
+
+test("submitting a blank title does not create a project, and Escape cancels the pending input", async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(request, uniqueTitle("Project"));
+  let commandCount = 0;
+  await page.route("**/api/commands", async (route) => {
+    commandCount += 1;
+    await route.continue();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  await page.keyboard.press("Meta+Shift+n"); // pending child input inside `project`
+
+  const newInput = page.locator('input:not([type="date"])');
+  await newInput.waitFor();
+  await newInput.press("Enter"); // blank — must not submit
+  await expect(newInput).toBeVisible(); // input stays open
+
+  await newInput.press("Escape"); // cancels — no node ever created
+  await expect(newInput).not.toBeVisible();
+
+  expect(commandCount).toBe(0);
 });
 
 test("Space toggles a todo's completion, hiding and (via Show completed) revealing it", async ({

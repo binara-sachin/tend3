@@ -3,7 +3,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
 import { useColumn, useRunCommand } from "../queries/hooks.js";
-import { useCreateNode } from "../queries/useCreateNode.js";
+import { useCreateNode, useSubmitNewNode } from "../queries/useCreateNode.js";
 import { SIDEBAR_DROP_IDS } from "../dnd/sidebarActions.js";
 import { useUiStore } from "../store/uiStore.js";
 import { DragHandleIcon, LogbookIcon, PlusIcon, TodayIcon, TrashIcon } from "../icons.js";
@@ -75,7 +75,10 @@ export function Sidebar() {
   const setFocusedColumnParentId = useUiStore((s) => s.setFocusedColumnParentId);
   const activeSmartList = useUiStore((s) => s.activeSmartList);
   const openRootId = useUiStore((s) => s.openPath[0]?.id);
+  const creatingParentId = useUiStore((s) => s.creatingParentId);
+  const setCreatingParentId = useUiStore((s) => s.setCreatingParentId);
   const createNode = useCreateNode();
+  const submitNewNode = useSubmitNewNode();
 
   // The sidebar renders depth 0 of the tree (spec 1) but is never a
   // Column, so nothing else ever gives Cmd+N a root-level target — this is
@@ -113,6 +116,22 @@ export function Sidebar() {
             />
           ))}
         </SortableContext>
+        {creatingParentId === "root" && (
+          <li>
+            {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+            <input
+              autoFocus
+              className="sidebar-rename-input"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  submitNewNode("root", e.currentTarget.value);
+                } else if (e.key === "Escape") {
+                  setCreatingParentId(null);
+                }
+              }}
+            />
+          </li>
+        )}
         <li>
           <button type="button" className="sidebar-item sidebar-item--add" onClick={() => createNode("root")}>
             <span className="sidebar-item-icon">
@@ -176,9 +195,14 @@ function SidebarProjectRow({
           defaultValue={title}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
+              const trimmed = e.currentTarget.value.trim();
+              // A blank title is rejected server-side too, but checking
+              // here avoids the round-trip and keeps the input open to try
+              // again instead of silently discarding the edit.
+              if (trimmed === "") return;
               runCommand.mutate({
                 type: "RenameNode",
-                payload: { nodeId: id, title: e.currentTarget.value },
+                payload: { nodeId: id, title: trimmed },
                 parentId: null,
               });
               setIsRenaming(false);

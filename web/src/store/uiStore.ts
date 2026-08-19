@@ -27,6 +27,12 @@ export interface UiState {
   isSearchOpen: boolean;
   /** Which headings are currently expanded inline within their column — global (not per-column) since a heading has exactly one parent column. */
   expandedHeadings: Record<string, boolean>;
+  /**
+   * The parentId (UI "root"/id sentinel) currently showing a blank inline
+   * title input for a not-yet-created node, or null. Only one at a time —
+   * setting a new value abandons whatever was being typed elsewhere.
+   */
+  creatingParentId: string | null;
   select(depth: number, entry: OpenPathEntry): void;
   setColumnWidth(index: number, width: number): void;
   toggleShowCompleted(parentId: string): void;
@@ -35,6 +41,7 @@ export interface UiState {
   setActiveSmartList(list: SmartList | null): void;
   setSearchOpen(open: boolean): void;
   setHeadingExpanded(headingId: string, expanded: boolean): void;
+  setCreatingParentId(parentId: string | null): void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -48,6 +55,7 @@ export const useUiStore = create<UiState>()(
       activeSmartList: null,
       isSearchOpen: false,
       expandedHeadings: {},
+      creatingParentId: null,
 
       select(depth, entry) {
         set({ openPath: [...get().openPath.slice(0, depth), entry], activeSmartList: null });
@@ -80,6 +88,10 @@ export const useUiStore = create<UiState>()(
 
       setHeadingExpanded(headingId, expanded) {
         set({ expandedHeadings: { ...get().expandedHeadings, [headingId]: expanded } });
+      },
+
+      setCreatingParentId(parentId) {
+        set({ creatingParentId: parentId });
       },
     }),
     { name: "tend-ui" },

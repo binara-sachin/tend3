@@ -3,7 +3,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useState } from "react";
 import { useColumn, useNode, useRunCommand } from "../queries/hooks.js";
-import { useCreateNode } from "../queries/useCreateNode.js";
+import { useCreateNode, useSubmitNewNode } from "../queries/useCreateNode.js";
 import { useUiStore } from "../store/uiStore.js";
 import type { ColumnRow } from "../../../queries/getColumn.js";
 import { formatColumnDueBadge } from "../format/dueBadge.js";
@@ -67,8 +67,16 @@ function Row({
         className="row-rename-input"
         defaultValue={row.title}
         onKeyDown={(e) => {
-          if (e.key === "Enter") onSubmitRename(e.currentTarget.value);
-          else if (e.key === "Escape") onCancelRename();
+          if (e.key === "Enter") {
+            const title = e.currentTarget.value.trim();
+            // A blank title is rejected server-side too, but checking here
+            // avoids the round-trip and keeps the input open to try again
+            // instead of silently discarding the edit.
+            if (title === "") return;
+            onSubmitRename(title);
+          } else if (e.key === "Escape") {
+            onCancelRename();
+          }
         }}
       />
     );
@@ -161,6 +169,28 @@ function Row({
   );
 }
 
+function NewItemRow({ parentKey }: { parentKey: string }) {
+  const submitNewNode = useSubmitNewNode();
+  const setCreatingParentId = useUiStore((s) => s.setCreatingParentId);
+
+  return (
+    <li>
+      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+      <input
+        autoFocus
+        className="row-rename-input"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            submitNewNode(parentKey, e.currentTarget.value);
+          } else if (e.key === "Escape") {
+            setCreatingParentId(null);
+          }
+        }}
+      />
+    </li>
+  );
+}
+
 interface ColumnBodyProps {
   parentId: string | null;
   depth: number;
@@ -174,6 +204,7 @@ function ColumnBody({ parentId, depth, nested = false }: ColumnBodyProps) {
   const setActiveSelection = useUiStore((s) => s.setActiveSelection);
   const expandedHeadings = useUiStore((s) => s.expandedHeadings);
   const setHeadingExpanded = useUiStore((s) => s.setHeadingExpanded);
+  const creatingParentId = useUiStore((s) => s.creatingParentId);
   const runCommand = useRunCommand();
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
@@ -223,6 +254,7 @@ function ColumnBody({ parentId, depth, nested = false }: ColumnBodyProps) {
             )}
           </li>
         ))}
+        {creatingParentId === parentKey && <NewItemRow parentKey={parentKey} />}
       </ul>
     </SortableContext>
   );

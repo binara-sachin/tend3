@@ -102,6 +102,30 @@ describe("Column", () => {
     );
   });
 
+  it("submitting a blank title while renaming does not submit RenameNode, and leaves the input open", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    const row = await screen.findByText("Buy milk");
+    row.focus();
+    await user.keyboard("{Enter}");
+
+    const input = await screen.findByRole("textbox");
+    await user.clear(input);
+    await user.keyboard("{Enter}");
+
+    expect(called).toBe(false);
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
   it("hides completed todos by default and reveals them via the show-completed toggle, with no network call", async () => {
     const completedTodo = { ...TODO_ROW, id: "todo-2", title: "Done thing", completedAt: "2024-01-01" };
     stubColumn("p1", [TODO_ROW, completedTodo]);
@@ -152,7 +176,26 @@ describe("Column", () => {
     expect(document.querySelector('[data-droppable-id="project-drop-proj-1"]')).not.toBeNull();
   });
 
-  it("the header's + button creates a new node as a child of this column", async () => {
+  it("the header's + button opens a blank title input instead of creating anything yet", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({ id: "new-1" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: /new item/i }));
+
+    expect(await screen.findByRole("textbox")).toHaveValue("");
+    expect(called).toBe(false);
+  });
+
+  it("submitting the + button's title input creates a new node with that title", async () => {
     stubColumn("p1", [TODO_ROW]);
     let capturedBody: unknown;
     mswServer.use(
@@ -166,13 +209,57 @@ describe("Column", () => {
     renderWithProviders(<Column parentId="p1" depth={0} />);
     await screen.findByText("Buy milk");
     await user.click(screen.getByRole("button", { name: /new item/i }));
+    const input = await screen.findByRole("textbox");
+    await user.type(input, "Buy bread");
+    await user.keyboard("{Enter}");
 
     await waitFor(() =>
       expect(capturedBody).toMatchObject({
         type: "CreateNode",
-        payload: { parentId: "p1", type: "todo", title: "" },
+        payload: { parentId: "p1", type: "todo", title: "Buy bread" },
       }),
     );
+  });
+
+  it("submitting a blank title from the + button's input does not create anything", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: /new item/i }));
+    await user.keyboard("{Enter}");
+
+    expect(called).toBe(false);
+    expect(screen.getByRole("textbox")).toBeInTheDocument(); // input stays open
+  });
+
+  it("Escape cancels the + button's pending input without creating anything", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: /new item/i }));
+    await screen.findByRole("textbox");
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(called).toBe(false);
   });
 
   it("does not register a whole-row drop target for todo rows", async () => {

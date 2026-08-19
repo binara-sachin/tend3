@@ -117,6 +117,29 @@ describe("Sidebar", () => {
     });
   });
 
+  it("submitting a blank title while renaming a root-level project does not submit RenameNode", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Sidebar />);
+    const row = await screen.findByText("Work");
+    row.focus();
+    await user.keyboard("{Enter}");
+    const renameInput = screen.getByDisplayValue("Work");
+    await user.clear(renameInput);
+    await user.keyboard("{Enter}");
+
+    expect(called).toBe(false);
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
   it("registers Today, Inbox, and Trash as drop targets, but not Logbook (spec 6: action targets, not move targets)", async () => {
     mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([INBOX, AREA])));
 
@@ -151,7 +174,26 @@ describe("Sidebar", () => {
     expect(workRow?.className).toContain("row");
   });
 
-  it("the New Project button creates a new root-level project", async () => {
+  it("the New Project button opens a blank title input instead of creating anything yet", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Sidebar />);
+    await screen.findByText("Work");
+    await user.click(screen.getByRole("button", { name: /new project/i }));
+
+    expect(await screen.findByRole("textbox")).toHaveValue("");
+    expect(called).toBe(false);
+  });
+
+  it("submitting the New Project input creates a new root-level project with that title", async () => {
     mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
     let capturedBody: unknown;
     mswServer.use(
@@ -165,10 +207,55 @@ describe("Sidebar", () => {
     renderWithProviders(<Sidebar />);
     await screen.findByText("Work");
     await user.click(screen.getByRole("button", { name: /new project/i }));
+    const input = await screen.findByRole("textbox");
+    await user.type(input, "Personal");
+    await user.keyboard("{Enter}");
 
     expect(capturedBody).toMatchObject({
       type: "CreateNode",
-      payload: { parentId: null, type: "project", title: "" },
+      payload: { parentId: null, type: "project", title: "Personal" },
     });
+  });
+
+  it("submitting a blank title from New Project does not create anything", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Sidebar />);
+    await screen.findByText("Work");
+    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await screen.findByRole("textbox");
+    await user.keyboard("{Enter}");
+
+    expect(called).toBe(false);
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
+  it("Escape cancels the New Project pending input without creating anything", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Sidebar />);
+    await screen.findByText("Work");
+    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await screen.findByRole("textbox");
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(called).toBe(false);
   });
 });
