@@ -168,6 +168,18 @@ function SidebarProjectRow({
     id: isSystem ? SIDEBAR_DROP_IDS.inbox : `sidebar-noop-${id}`,
     disabled: !isSystem,
   });
+  // Ordinary root-level projects are whole-row "drop into project" targets
+  // too, via the same project-drop-<id> id Column.tsx's in-column project
+  // rows already use — DragProvider's WHOLE_ROW_DROP_PREFIX branch and its
+  // pointerWithin collision priority handle it with no new drag logic. This
+  // is what lets a task be dragged from the currently open project directly
+  // onto a DIFFERENT root-level project, since only one root project's
+  // column chain is ever open at once.
+  const { setNodeRef: setWholeRowDropRef, isOver: isWholeRowOver } = useDroppable({
+    id: `project-drop-${id}`,
+    data: { parentId: id, type: "whole-row" },
+    disabled: isSystem,
+  });
   // Inbox is pinned first and never draggable — its own sortable id is
   // simply excluded from the SortableContext's items (see Sidebar()), and
   // this hook is disabled for it too so it never initiates a drag.
@@ -237,10 +249,17 @@ function SidebarProjectRow({
 
   const row = (
     <button
-      ref={isSystem ? setNodeRef : setSortableRef}
+      ref={(node) => {
+        if (isSystem) {
+          setNodeRef(node);
+        } else {
+          setSortableRef(node);
+          setWholeRowDropRef(node);
+        }
+      }}
       type="button"
-      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}`}
-      data-droppable-id={isSystem ? SIDEBAR_DROP_IDS.inbox : undefined}
+      className={`sidebar-item${isSelected ? " sidebar-item--selected" : ""}${isWholeRowOver ? " sidebar-item--drop-target" : ""}`}
+      data-droppable-id={isSystem ? SIDEBAR_DROP_IDS.inbox : `project-drop-${id}`}
       style={isSystem ? undefined : { transform: CSS.Transform.toString(transform), transition }}
       {...(isSystem ? undefined : attributes)}
       {...(isSystem ? undefined : listeners)}

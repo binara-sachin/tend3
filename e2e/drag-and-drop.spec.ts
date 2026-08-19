@@ -162,6 +162,36 @@ test("moving a root-level project into a sub-project removes it from the sidebar
   await expect(page.getByText(movable.title)).toBeVisible();
 });
 
+test("dragging a task onto a different root-level project's sidebar row moves it there", async ({
+  page,
+  request,
+}) => {
+  const openProject = await createProject(request, uniqueTitle("OpenProject"));
+  const otherProject = await createProject(request, uniqueTitle("OtherMainProject"));
+  const todoTitle = uniqueTitle("CrossProjectTodo");
+  await createTodo(request, openProject.id, { title: todoTitle, sortKey: "a0" });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: otherProject.title, exact: true }).waitFor();
+  await page.getByText(openProject.title).click();
+  await expect(page.getByText(todoTitle)).toBeVisible();
+
+  // otherProject's column is never opened — only its sidebar row is ever on
+  // screen, which is exactly the scenario this fixes: previously there was
+  // no way to drop a task onto a different main project without both
+  // columns open simultaneously (impossible — only one root chain opens at
+  // a time), since ordinary sidebar rows weren't valid drop targets.
+  const todoRow = page.getByRole("button", { name: todoTitle, exact: true });
+  const otherProjectSidebarRow = page.getByRole("button", { name: otherProject.title, exact: true });
+  await dragRow(page, todoRow, otherProjectSidebarRow);
+
+  await expect(page.getByText(todoTitle)).toHaveCount(0); // gone from openProject's column
+
+  await page.reload();
+  await page.getByRole("button", { name: otherProject.title, exact: true }).click();
+  await expect(page.getByText(todoTitle)).toBeVisible();
+});
+
 test("reparenting onto a project row via pointer drag moves the todo into it", async ({
   page,
   request,

@@ -804,7 +804,8 @@ textarea {
   box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
 
-.row-main--drop-target {
+.row-main--drop-target,
+.sidebar-item--drop-target {
   box-shadow:
     inset 0 0 0 1.5px var(--color-accent),
     0 0 14px color-mix(in srgb, var(--color-accent) 35%, transparent);
