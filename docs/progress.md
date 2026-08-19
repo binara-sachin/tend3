@@ -681,3 +681,105 @@ clean.
   restart, single-user local app) — not expected to matter at this app's
   intended scale, but worth remembering if this codebase's assumptions
   (single user, single process, local-first) ever change.
+
+## UI Redesign — Nocturne Design System
+
+**Status: complete.** Follows the five build phases above; not part of
+that original plan. Source mockups (`docs/ui-design/01.png`–`07.png`,
+plus the exported design-system CSS this branch's tokens were copied
+from) came from the user; implementation reused their exact colors,
+spacing, and hand-drawn icon shapes rather than the mockup readme's
+stated Phosphor-icons instruction, since the approved PNGs take
+precedence over a generic design-system doc.
+
+### What shipped
+
+- **`web/src/styles/tokens.css` / `app.css`**: the Nocturne color/spacing/
+  radius/shadow tokens verbatim, plus every component class (sidebar,
+  column, row, badge, detail pane, smart lists, search dialog, drag
+  affordances) used across the redesigned components.
+- **`web/src/icons.tsx`**: hand-rolled SVG icon components matching the
+  mockups' exact paths (not a Phosphor dependency).
+- **Every view component restyled**: `App`, `Sidebar`, `Column`/
+  `ColumnStack`, `DetailPane`, `TodayView`, `LogbookView`, `TrashView`,
+  `SearchPalette` — icons, badges, breadcrumbs, toggle switches, and the
+  column header now showing its own node's title.
+- **Backend additions to support the redesign** (all TDD'd, additive,
+  no schema changes): `ColumnRow.hasNotes`, `TrashRow.deletedAt`,
+  `LogbookRow.parentTitle`, and an ancestor `path` (with titles) on both
+  `NodeDetail` (for the detail-pane breadcrumb) and `SearchResult` (for
+  the search-result path line).
+- **New pure formatters, each with its own unit test**: `dueBadge.ts`
+  (column "when" badges vs. Today's deadline-first badges),
+  `logbookDay.ts` (Today/Yesterday/"Mon, Aug 10" day labels — a
+  deliberate change from the raw ISO date the day headers used to show),
+  `deletedAgo.ts` ("Deleted N ago" trash captions), `highlight.ts`
+  (client-side title-substring matching for search result highlighting).
+- **Drag-and-drop visual feedback**: a `drop-indicator` line for reorder
+  targets and a whole-row glow for reparent targets, both driven by
+  dnd-kit's own `isDragging`/`isOver` state (no new drag logic); a
+  `DragOverlay` ghost row while dragging.
+
+### A build-breaking bug found and fixed mid-branch
+
+A doc comment in `tokens.css` describing the source file path
+(`nocturne-*/styles.css`) accidentally contained the character sequence
+`*/`, closing the CSS block comment early and corrupting the whole
+stylesheet. This silently broke `vite build`, which in turn made every
+e2e test time out (the app never rendered) — 17/17 failures on the
+first post-restyle e2e run, all pointing at unrelated `getByText`
+timeouts. Root-caused by bisecting: `npx vite build` reproduced the
+failure directly outside Playwright, `git blame`-style diff review found
+the malformed comment. Also moved the Google Fonts import from a
+CSS `@import url(...)` to an `index.html <link>` — an `@import` of a
+remote stylesheet is resolved at *build* time by `postcss-import`, which
+fails in this sandbox's network-restricted environment; a `<link>` is
+fetched by the *browser* at runtime instead, degrading gracefully to
+the `system-ui` fallback if unreachable.
+
+### Test-fragility fallout from the redesign itself (not bugs)
+
+Several pre-existing e2e assertions became ambiguous once restyled
+components started **redisplaying** state that used to live in only one
+place: the column header now shows its own title (duplicating the
+sidebar entry once that project's column is open, typically after a
+`page.reload()` restores the persisted open path), and the detail pane
+now shows the node's own title (duplicating its row). Fixed by scoping
+those `getByText(title)` queries to `getByRole("button", { name: title,
+exact: true })`, which resolves to just the interactive row/sidebar
+entry since the duplicate text lives in a plain `<span>`/`<div>` with no
+role. One Logbook e2e assertion also needed updating for the deliberate
+`formatLogbookDay` change (raw ISO date → "Today").
+
+### Visual verification
+
+No working `chrome` channel for the Playwright MCP browser on this
+sandbox's Linux/ARM64 host (`npx playwright install chrome` fails
+outright — not supported on that architecture), so verification drove
+the already-installed Playwright-test `chromium` directly via a
+throwaway script: seeded a database through the real command API
+(projects, headings, todos with `whenDate`/`deadline`/`notes`, one
+derived-complete project, one completed-today todo, two trashed items),
+built the frontend, and screenshotted all five main views at 1600×900
+against `docs/ui-design/01.png`–`06.png`. Found and fixed one real bug
+this way: `.search-result-body` was an unstyled `<span>`, so a search
+result's title and its breadcrumb path rendered inline on one line
+instead of stacked — added `display:flex; flex-direction:column`.
+Screen 7 (mid-drag drop-indicator/whole-row-highlight state) was not
+screenshotted — simulating a live drag for a screenshot needs pointer
+event choreography this project's own e2e suite deliberately avoids as
+flaky (see `e2e/drag-and-drop.spec.ts`'s comment); reviewed the wiring
+by reading, not by screenshot.
+
+### Explicitly deferred
+
+- The search palette's FTS5 snippet line ("— mentions '...'") for a
+  notes-only match — needs `snippet()` support in the query layer, not
+  just client-side string matching. The result row does correctly show a
+  document icon instead of a type icon when the match isn't in the
+  title, as a lighter-weight substitute.
+
+### Test counts
+
+357 unit tests (up from 331 pre-redesign), 49 files, all passing. Both
+`npm run typecheck` targets clean. All 17 e2e tests passing.
