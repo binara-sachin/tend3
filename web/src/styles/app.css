@@ -119,6 +119,10 @@ textarea {
   color: var(--color-accent);
 }
 
+.sidebar-item--add {
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
 .sidebar-item--add:hover {
   background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
