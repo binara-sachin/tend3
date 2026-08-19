@@ -1,7 +1,6 @@
 import {
   DndContext,
   DragOverlay,
-  KeyboardSensor,
   PointerSensor,
   closestCenter,
   pointerWithin,
@@ -11,7 +10,6 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useState, type ReactNode } from "react";
 import { INBOX_ID } from "../../../db/constants.js";
 import type { ColumnRow } from "../../../queries/getColumn.js";
@@ -64,19 +62,16 @@ export function DragProvider({ children }: { children: ReactNode }) {
   const runCommand = useRunCommand();
   const [activeItem, setActiveItem] = useState<SortableItemData | null>(null);
 
+  // Pointer-only for now: dragging is mouse/touch-driven, and arrow keys are
+  // reserved for row/column focus navigation (see Column.tsx, Sidebar.tsx)
+  // rather than dnd-kit's keyboard sensor, which needed Space to pick up —
+  // that key is no longer bound to anything.
   const sensors = useSensors(
     // A distance threshold, rather than activating on the first pixel of
     // movement, is what lets a plain click on the row (select/open) coexist
     // with click-and-drag from the same element now that there's no
     // separate drag handle.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-      // Excludes Enter (dnd-kit's other default pickup/drop key) since Enter
-      // on a row now exclusively means "start rename" — there's no longer a
-      // separate handle element to give it a second meaning on.
-      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] },
-    }),
   );
 
   function handleDragStart(event: DragStartEvent) {

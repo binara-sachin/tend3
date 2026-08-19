@@ -8,8 +8,7 @@ test("shows a project's todos, and inline rename persists", async ({ page, reque
 
   await page.goto("/");
   await page.getByRole("button", { name: project.title, exact: true }).click();
-  await page.getByText(todoTitle).click(); // select + focus the row
-  await page.keyboard.press("Enter"); // start inline rename
+  await page.getByText(todoTitle).dblclick(); // start inline rename
   const renameInput = page.locator('input:not([type="date"])');
   await renameInput.fill("Renamed via E2E");
   await renameInput.press("Enter");
@@ -100,27 +99,4 @@ test("submitting a blank title does not create a project, and Escape cancels the
   await expect(newInput).not.toBeVisible();
 
   expect(commandCount).toBe(0);
-});
-
-test("Space toggles a todo's completion, hiding and (via Show completed) revealing it", async ({
-  page,
-  request,
-}) => {
-  const project = await createProject(request, uniqueTitle("Project"));
-  const todoTitle = uniqueTitle("Todo");
-  await createTodo(request, project.id, { title: todoTitle, sortKey: "a0" });
-
-  await page.goto("/");
-  await page.getByText(project.title).click();
-  await page.getByText(todoTitle).click();
-  await page.keyboard.press(" ");
-
-  // The detail pane stays open (still showing todoTitle) even once the row
-  // is hidden, so scope to the row (the only one with a role) to check
-  // specifically that IT is gone.
-  const todoRow = page.getByRole("button", { name: todoTitle, exact: true });
-  await expect(todoRow).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Show completed" }).click();
-  await expect(todoRow).toBeVisible();
 });

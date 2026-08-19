@@ -225,18 +225,7 @@ function SidebarProjectRow({
       {...(isSystem ? undefined : attributes)}
       {...(isSystem ? undefined : listeners)}
       onClick={onSelect}
-      onKeyDown={(e) => {
-        // dnd-kit's keyboard sensor (Space to pick up/drop) is wired onto
-        // this same element via `listeners` — it filters by key code
-        // internally, so it's safe to always forward the event to it
-        // alongside this button's own Enter-to-rename handling. `listeners`
-        // is undefined for Inbox (drag disabled), so this is a no-op there.
-        listeners?.onKeyDown?.(e);
-        if (e.key === "Enter") {
-          e.preventDefault(); // suppress the native click-on-Enter; rename, don't (also) select-navigate
-          setIsRenaming(true);
-        }
-      }}
+      onDoubleClick={() => setIsRenaming(true)}
     >
       {title}
     </button>

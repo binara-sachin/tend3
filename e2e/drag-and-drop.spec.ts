@@ -1,25 +1,50 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createProject, createSubProject, createTodo, uniqueTitle } from "./helpers.js";
 
 /**
- * Drag-and-drop is driven through dnd-kit's keyboard sensor rather than
- * simulated pointer events, per spec 8: pointer-based DnD simulation is
- * notoriously flaky, and the keyboard sensor exercises the same
- * reordering/reparenting logic deterministically. This also needs a real
+ * Drag-and-drop is driven through real pointer events — dnd-kit's keyboard
+ * sensor was removed (Space and Enter no longer do anything; arrow keys are
+ * reserved for row/column focus navigation), so pointer simulation is the
+ * only way left to exercise reordering/reparenting. This needs a real
  * browser's layout engine — jsdom reports every element as a zero-size
- * rect, which is exactly why this suite (and not an RTL test) covers it.
+ * rect — which is exactly why this suite (and not an RTL test) covers it.
  */
 
-function rowTitles(page: import("@playwright/test").Page) {
+function rowTitles(page: Page) {
   return page.locator("[data-row='true']").allTextContents();
 }
 
 /** The sidebar's root-level project list, in DOM order — includes Inbox and every other test's accumulated fixtures. */
-function sidebarProjectTitles(page: import("@playwright/test").Page) {
+function sidebarProjectTitles(page: Page) {
   return page.locator("nav ul").nth(1).locator(".sidebar-item").allTextContents();
 }
 
-test("reordering within a column via the keyboard sensor persists across a reload", async ({
+/**
+ * Drags `from` onto `to` via real mouse events: down, a small move past the
+ * pointer sensor's 8px activation-distance threshold, a move to the target,
+ * then up. Both locators are read for their bounding box up front, so the
+ * caller doesn't need real layout beyond what Playwright already provides.
+ */
+async function dragRow(page: Page, from: Locator, to: Locator) {
+  const fromBox = await from.boundingBox();
+  const toBox = await to.boundingBox();
+  if (!fromBox || !toBox) throw new Error("dragRow: source or target has no layout box");
+
+  const startX = fromBox.x + fromBox.width / 2;
+  const startY = fromBox.y + fromBox.height / 2;
+  const endX = toBox.x + toBox.width / 2;
+  const endY = toBox.y + toBox.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX, startY + 12, { steps: 5 }); // clear the activation threshold
+  await page.mouse.move(endX, endY, { steps: 10 });
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+}
+
+test("reordering within a column via pointer drag persists across a reload", async ({
   page,
   request,
 }) => {
@@ -36,16 +61,11 @@ test("reordering within a column via the keyboard sensor persists across a reloa
   await expect(page.getByText(titleC)).toBeVisible();
   expect(await rowTitles(page)).toEqual([titleA, titleB, titleC]);
 
-  // There's no separate drag handle — the row itself is the sortable node,
-  // focusable and keyboard-activatable directly.
-  const dragHandleA = page.getByRole("button", { name: titleA, exact: true });
-  await dragHandleA.focus();
-  await page.keyboard.press("Space"); // pick up
-  await page.waitForTimeout(150);
-  await page.keyboard.press("ArrowDown"); // move past B
-  await page.waitForTimeout(150);
-  await page.keyboard.press("Space"); // drop
-  await page.waitForTimeout(150);
+  // There's no separate drag handle — the row itself is the draggable
+  // surface, click-and-drag from anywhere on it.
+  const rowA = page.getByRole("button", { name: titleA, exact: true });
+  const rowB = page.getByRole("button", { name: titleB, exact: true });
+  await dragRow(page, rowA, rowB); // move past B
 
   const reordered = await rowTitles(page);
   expect(reordered).toContain(titleA);
@@ -57,7 +77,7 @@ test("reordering within a column via the keyboard sensor persists across a reloa
   expect(afterReload).toEqual(reordered); // the reorder round-tripped the server
 });
 
-test("reordering root-level projects via the keyboard sensor persists, with Inbox pinned first", async ({
+test("reordering root-level projects via pointer drag persists, with Inbox pinned first", async ({
   page,
 }) => {
   const firstTitle = uniqueTitle("SidebarFirst");
@@ -90,13 +110,9 @@ test("reordering root-level projects via the keyboard sensor persists, with Inbo
   expect(before[0]).toBe("Inbox");
   expect(before.indexOf(firstTitle)).toBeLessThan(before.indexOf(secondTitle));
 
-  const dragHandle = page.getByRole("button", { name: secondTitle, exact: true });
-  await dragHandle.focus();
-  await page.keyboard.press("Space"); // pick up
-  await page.waitForTimeout(150);
-  await page.keyboard.press("ArrowUp"); // move above "first"
-  await page.waitForTimeout(150);
-  await page.keyboard.press("Space"); // drop
+  const rowFirst = page.getByRole("button", { name: firstTitle, exact: true });
+  const rowSecond = page.getByRole("button", { name: secondTitle, exact: true });
+  await dragRow(page, rowSecond, rowFirst); // move above "first"
 
   // The drop fires a MoveNode command and refetches the sidebar's root
   // column — poll instead of a fixed wait for that round-trip.
@@ -118,7 +134,7 @@ test("reordering root-level projects via the keyboard sensor persists, with Inbo
   expect((await sidebarProjectTitles(page))[0]).toBe("Inbox");
 });
 
-test("reparenting onto a project row via the keyboard sensor moves the todo into it", async ({
+test("reparenting onto a project row via pointer drag moves the todo into it", async ({
   page,
   request,
 }) => {
@@ -132,13 +148,12 @@ test("reparenting onto a project row via the keyboard sensor moves the todo into
   await expect(page.getByText(todoTitle)).toBeVisible();
   await expect(page.getByText(target.title)).toBeVisible();
 
-  const dragHandle = page.getByRole("button", { name: todoTitle, exact: true });
-  await dragHandle.focus();
-  await page.keyboard.press("Space"); // pick up
-  await page.keyboard.press("ArrowDown"); // move onto/past the target project row
-  await page.keyboard.press("Space"); // drop
+  const todoRow = page.getByRole("button", { name: todoTitle, exact: true });
+  // The whole-row "drop into project" target, not just the target's text —
+  // this is what the collision strategy actually keys on (see DragProvider).
+  const targetDropZone = page.locator(`[data-droppable-id="project-drop-${target.id}"]`);
+  await dragRow(page, todoRow, targetDropZone);
 
-  await page.waitForTimeout(300);
   await page.reload();
   await page.getByRole("button", { name: root.title, exact: true }).click();
   await page.getByText(target.title).click();

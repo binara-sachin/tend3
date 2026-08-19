@@ -71,7 +71,7 @@ describe("Column", () => {
     expect(useUiStore.getState().openPath).toEqual([{ id: "proj-1", type: "project" }]);
   });
 
-  it("Enter on a row enters inline rename, and Enter again submits RenameNode", async () => {
+  it("double-clicking a row enters inline rename, and Enter submits RenameNode", async () => {
     stubColumn("p1", [TODO_ROW]);
     let capturedBody: unknown;
     mswServer.use(
@@ -84,8 +84,7 @@ describe("Column", () => {
 
     renderWithProviders(<Column parentId="p1" depth={0} />);
     const row = await screen.findByText("Buy milk");
-    row.focus();
-    await user.keyboard("{Enter}");
+    await user.dblClick(row);
 
     const input = await screen.findByRole("textbox");
     expect(input).toHaveValue("Buy milk");
@@ -115,8 +114,7 @@ describe("Column", () => {
 
     renderWithProviders(<Column parentId="p1" depth={0} />);
     const row = await screen.findByText("Buy milk");
-    row.focus();
-    await user.keyboard("{Enter}");
+    await user.dblClick(row);
 
     const input = await screen.findByRole("textbox");
     await user.clear(input);

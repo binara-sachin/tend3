@@ -101,16 +101,8 @@ function Row({
         data-droppable-id={row.type === "project" ? `project-drop-${row.id}` : undefined}
         className={`row-main${row.type === "heading" ? " row-main--heading" : ""}${isWholeRowOver ? " row-main--drop-target" : ""}`}
         onClick={onSelect}
+        onDoubleClick={onStartRename}
         onKeyDown={(e) => {
-          // dnd-kit's keyboard sensor (Space to pick up/drop) is wired onto
-          // this same element via `listeners` — it filters by key code
-          // internally, so it's safe to always forward the event to it
-          // alongside this row's own Enter/Arrow handling.
-          listeners?.onKeyDown?.(e);
-          if (e.key === "Enter") {
-            onStartRename();
-            return;
-          }
           if (e.key === "ArrowDown" || e.key === "ArrowUp") {
             e.preventDefault();
             const list = e.currentTarget.closest("ul");

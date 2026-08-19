@@ -91,7 +91,7 @@ describe("Sidebar", () => {
     expect(useUiStore.getState().openPath).toEqual([]);
   });
 
-  it("renaming a root-level project via Enter submits RenameNode with parentId null", async () => {
+  it("double-clicking a root-level project submits RenameNode with parentId null", async () => {
     mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
     let capturedBody: unknown;
     mswServer.use(
@@ -104,8 +104,7 @@ describe("Sidebar", () => {
 
     renderWithProviders(<Sidebar />);
     const row = await screen.findByText("Work");
-    row.focus();
-    await user.keyboard("{Enter}");
+    await user.dblClick(row);
     const renameInput = screen.getByDisplayValue("Work");
     await user.clear(renameInput);
     await user.type(renameInput, "Renamed");
@@ -130,8 +129,7 @@ describe("Sidebar", () => {
 
     renderWithProviders(<Sidebar />);
     const row = await screen.findByText("Work");
-    row.focus();
-    await user.keyboard("{Enter}");
+    await user.dblClick(row);
     const renameInput = screen.getByDisplayValue("Work");
     await user.clear(renameInput);
     await user.keyboard("{Enter}");

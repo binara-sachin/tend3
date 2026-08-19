@@ -1,18 +1,10 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useRedo, useRunCommand, useUndo } from "../queries/hooks.js";
 import { useCreateNode } from "../queries/useCreateNode.js";
 import { useUiStore } from "../store/uiStore.js";
 
-interface CachedRow {
-  id: string;
-  sortKey?: string;
-  completedAt?: string | null;
-}
-
 /** Mounted once at the app root. Acts on the UI store's current activeSelection / focusedColumnParentId. */
 export function useKeyboardShortcuts(): void {
-  const queryClient = useQueryClient();
   const runCommand = useRunCommand();
   const undo = useUndo();
   const redo = useRedo();
@@ -29,32 +21,15 @@ export function useKeyboardShortcuts(): void {
       return uiParentId === "root" ? null : uiParentId;
     }
 
-    function siblingsOf(targetParentId: string): CachedRow[] {
-      return queryClient.getQueryData<CachedRow[]>(["columns", toApiParentId(targetParentId)]) ?? [];
-    }
-
     function onKeyDown(e: KeyboardEvent) {
       const { activeSelection: selection, focusedColumnParentId } = useUiStore.getState();
       const target = document.activeElement;
       const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 
-      // Space (type a space while renaming/editing notes) and Cmd+Backspace
-      // (macOS's native delete-to-line-start in a text field) both have a
-      // real, expected meaning while typing — never let them fall through
-      // to the row-level shortcuts below.
-      if (isTextField && (e.key === " " || (e.metaKey && e.key === "Backspace"))) {
-        return;
-      }
-
-      if (e.key === " " && !e.metaKey) {
-        if (!selection || selection.type !== "todo") return;
-        e.preventDefault();
-        const current = siblingsOf(selection.parentId).find((r) => r.id === selection.nodeId);
-        runCommand.mutate({
-          type: "SetCompleted",
-          payload: { nodeId: selection.nodeId, completed: current?.completedAt == null },
-          parentId: selection.parentId,
-        });
+      // Cmd+Backspace's meta+Backspace is macOS's native delete-to-line-start
+      // in a text field — never let it fall through to the row-level trash
+      // shortcut below while typing.
+      if (isTextField && e.metaKey && e.key === "Backspace") {
         return;
       }
 
@@ -106,5 +81,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [queryClient, runCommand, undo, redo, createNode]);
+  }, [runCommand, undo, redo, createNode]);
 }
