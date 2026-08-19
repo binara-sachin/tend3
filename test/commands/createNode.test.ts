@@ -137,6 +137,24 @@ describe("CreateNode.apply", () => {
     expect(() => command.apply(ctx)).toThrow(/todo/i);
   });
 
+  it("rejects a blank title", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+
+    const command = new CreateNode({
+      id: generateId(),
+      parentId: root.id,
+      type: "todo",
+      title: "   ",
+      notes: "",
+      sortKey: "a0",
+      whenDate: null,
+      deadline: null,
+    });
+
+    expect(() => command.apply(ctx)).toThrow(/title/i);
+  });
+
   it("rejects creating under a missing parent", () => {
     const command = new CreateNode({
       id: generateId(),

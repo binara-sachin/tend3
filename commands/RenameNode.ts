@@ -20,6 +20,9 @@ export class RenameNode implements Command {
     if (node.isSystem) {
       throw new Error("RenameNode: cannot rename the Inbox");
     }
+    if (this.title.trim() === "") {
+      throw new Error("RenameNode: title must not be blank");
+    }
 
     this.priorTitle = node.title;
     this.priorUpdatedAt = node.updatedAt;

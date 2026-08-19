@@ -45,6 +45,14 @@ describe("RenameNode.apply", () => {
   it("throws if the node does not exist", () => {
     expect(() => new RenameNode("missing", "x").apply(ctx)).toThrow(/not found/i);
   });
+
+  it("rejects a blank title", () => {
+    const node = newNodeInput({ type: "todo", title: "old" });
+    repo.insert(node);
+
+    expect(() => new RenameNode(node.id, "   ").apply(ctx)).toThrow(/title/i);
+    expect(repo.getById(node.id)?.title).toBe("old");
+  });
 });
 
 describe("RenameNode.invert", () => {

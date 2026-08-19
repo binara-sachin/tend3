@@ -5,7 +5,10 @@ export type TreeNode =
   | { type: "heading"; title: string; children: TreeNode[] }
   | { type: "project"; title: string; children: TreeNode[] };
 
-const titleArb = fc.string({ minLength: 0, maxLength: 12 });
+// Blank (or whitespace-only) titles are rejected by CreateNode/RenameNode
+// (a real, permanent business rule — see commands/CreateNode.ts and
+// commands/RenameNode.ts), so no valid tree can ever contain one.
+const titleArb = fc.string({ minLength: 1, maxLength: 12 }).filter((title) => title.trim() !== "");
 
 function todoArb(): fc.Arbitrary<TreeNode> {
   return titleArb.map((title) => ({ type: "todo" as const, title }));

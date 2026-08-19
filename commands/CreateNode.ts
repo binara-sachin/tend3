@@ -45,6 +45,10 @@ export class CreateNode implements Command {
       }
     }
 
+    if (this.input.title.trim() === "") {
+      throw new Error("CreateNode: title must not be blank");
+    }
+
     const now = ctx.now();
     ctx.repo.insert({
       id,
