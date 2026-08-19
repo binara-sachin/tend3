@@ -25,6 +25,42 @@ test("shows a project's todos, and inline rename persists", async ({ page, reque
   await expect(page.getByText(todoTitle)).toHaveCount(0);
 });
 
+test("clicking outside the rename input commits it, and Escape cancels without also submitting", async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(request, uniqueTitle("Project"));
+  const todoTitle = uniqueTitle("Todo");
+  await createTodo(request, project.id, { title: todoTitle, sortKey: "a0" });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  await page.getByText(todoTitle).dblclick();
+  const renameInput = page.locator('input:not([type="date"])');
+  await renameInput.fill("Renamed by clicking away");
+  await page.getByRole("button", { name: "Show completed" }).click(); // click elsewhere
+
+  await expect(
+    page.getByRole("button", { name: "Renamed by clicking away", exact: true }),
+  ).toBeVisible();
+  await expect(renameInput).toHaveCount(0);
+
+  // Escape should cancel outright — the row title must stay untouched even
+  // though unmounting the input can itself fire a native blur in a real
+  // browser (the exact interaction this test also guards against). Scoped
+  // to the row (not the detail pane, which shows the same title).
+  await page
+    .getByRole("button", { name: "Renamed by clicking away", exact: true })
+    .dblclick();
+  await page.locator('input:not([type="date"])').fill("Should never be saved");
+  await page.keyboard.press("Escape");
+
+  await expect(
+    page.getByRole("button", { name: "Renamed by clicking away", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Should never be saved")).toHaveCount(0);
+});
+
 test("editing notes in the detail pane persists across a reload", async ({ page, request }) => {
   const project = await createProject(request, uniqueTitle("Project"));
   const todoTitle = uniqueTitle("Todo");

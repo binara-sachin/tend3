@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useColumn, useNode, useRunCommand } from "../queries/hooks.js";
 import { useCreateNode, useSubmitNewNode } from "../queries/useCreateNode.js";
 import { useUiStore } from "../store/uiStore.js";
@@ -57,8 +57,15 @@ function Row({
     id: `project-drop-${row.id}`,
     data: { parentId: row.id, type: "whole-row" },
   });
+  // Escape cancels immediately, but unmounting the still-focused input right
+  // after (this component doesn't remount between rename attempts, so a ref
+  // survives across them) can itself fire a native blur — this flag, reset
+  // whenever a new rename session starts below, lets the blur handler tell
+  // "Escape already resolved this" apart from "the user clicked away."
+  const escapedRef = useRef(false);
 
   if (isRenaming) {
+    escapedRef.current = false;
     return (
       // eslint-disable-next-line jsx-a11y/no-autofocus
       <input
@@ -74,8 +81,20 @@ function Row({
             if (title === "") return;
             onSubmitRename(title);
           } else if (e.key === "Escape") {
+            escapedRef.current = true;
             onCancelRename();
           }
+        }}
+        onBlur={(e) => {
+          if (escapedRef.current) return;
+          const title = e.currentTarget.value.trim();
+          // Clicking away with a blank field has nothing valid to commit —
+          // cancel instead of leaving an unfocused, empty input stranded.
+          if (title === "") {
+            onCancelRename();
+            return;
+          }
+          onSubmitRename(title);
         }}
       />
     );

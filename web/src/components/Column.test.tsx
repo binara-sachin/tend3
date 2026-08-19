@@ -124,6 +124,62 @@ describe("Column", () => {
     expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
+  it("clicking outside the rename input submits RenameNode with the edited title", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "todo-1", title: "Buy oat milk" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    const row = await screen.findByText("Buy milk");
+    await user.dblClick(row);
+
+    const input = await screen.findByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "Buy oat milk");
+    // "Show completed" is an inert click target — unlike "New item" it has
+    // no side effect (like opening its own input) that would confuse this
+    // assertion.
+    await user.click(screen.getByRole("button", { name: "Show completed" }));
+
+    await waitFor(() =>
+      expect(capturedBody).toEqual({
+        type: "RenameNode",
+        payload: { nodeId: "todo-1", title: "Buy oat milk" },
+      }),
+    );
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("clicking outside a blank rename input cancels the rename instead of submitting", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    const row = await screen.findByText("Buy milk");
+    await user.dblClick(row);
+
+    const input = await screen.findByRole("textbox");
+    await user.clear(input);
+    await user.click(screen.getByRole("button", { name: "Show completed" }));
+
+    expect(called).toBe(false);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByText("Buy milk")).toBeInTheDocument(); // reverted to the row
+  });
+
   it("hides completed todos by default and reveals them via the show-completed toggle, with no network call", async () => {
     const completedTodo = { ...TODO_ROW, id: "todo-2", title: "Done thing", completedAt: "2024-01-01" };
     stubColumn("p1", [TODO_ROW, completedTodo]);

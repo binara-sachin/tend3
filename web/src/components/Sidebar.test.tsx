@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import userEvent from "@testing-library/user-event";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import "../test/setup.js";
@@ -136,6 +136,57 @@ describe("Sidebar", () => {
 
     expect(called).toBe(false);
     expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
+  it("clicking outside the rename input submits RenameNode with the edited title", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "area-1", title: "Renamed" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Sidebar />);
+    const row = await screen.findByText("Work");
+    await user.dblClick(row);
+    const renameInput = screen.getByDisplayValue("Work");
+    await user.clear(renameInput);
+    await user.type(renameInput, "Renamed");
+    await user.click(screen.getByText("Today")); // click elsewhere
+
+    await waitFor(() =>
+      expect(capturedBody).toEqual({
+        type: "RenameNode",
+        payload: { nodeId: "area-1", title: "Renamed" },
+      }),
+    );
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("clicking outside a blank rename input cancels the rename instead of submitting", async () => {
+    mswServer.use(http.get("/api/columns/root", () => HttpResponse.json([AREA])));
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Sidebar />);
+    const row = await screen.findByText("Work");
+    await user.dblClick(row);
+    const renameInput = screen.getByDisplayValue("Work");
+    await user.clear(renameInput);
+    await user.click(screen.getByText("Today"));
+
+    expect(called).toBe(false);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByText("Work")).toBeInTheDocument(); // reverted to the row
   });
 
   it("registers Today, Inbox, and Trash as drop targets, but not Logbook (spec 6: action targets, not move targets)", async () => {

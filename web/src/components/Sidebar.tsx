@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useColumn, useRunCommand } from "../queries/hooks.js";
 import { useCreateNode, useSubmitNewNode } from "../queries/useCreateNode.js";
 import { SIDEBAR_DROP_IDS } from "../dnd/sidebarActions.js";
@@ -184,8 +184,30 @@ function SidebarProjectRow({
   });
   const runCommand = useRunCommand();
   const [isRenaming, setIsRenaming] = useState(false);
+  // Escape cancels immediately, but unmounting the still-focused input right
+  // after (this component doesn't remount between rename attempts, so a ref
+  // survives across them) can itself fire a native blur — this flag, reset
+  // whenever a new rename session starts below, lets the blur handler tell
+  // "Escape already resolved this" apart from "the user clicked away."
+  const escapedRef = useRef(false);
 
   if (isRenaming) {
+    escapedRef.current = false;
+
+    const commitRename = (rawTitle: string) => {
+      const trimmed = rawTitle.trim();
+      // A blank title is rejected server-side too, but checking here avoids
+      // the round-trip and keeps the input open to try again instead of
+      // silently discarding the edit.
+      if (trimmed === "") return false;
+      runCommand.mutate({
+        type: "RenameNode",
+        payload: { nodeId: id, title: trimmed },
+        parentId: null,
+      });
+      return true;
+    };
+
     return (
       <li>
         {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
@@ -195,20 +217,18 @@ function SidebarProjectRow({
           defaultValue={title}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              const trimmed = e.currentTarget.value.trim();
-              // A blank title is rejected server-side too, but checking
-              // here avoids the round-trip and keeps the input open to try
-              // again instead of silently discarding the edit.
-              if (trimmed === "") return;
-              runCommand.mutate({
-                type: "RenameNode",
-                payload: { nodeId: id, title: trimmed },
-                parentId: null,
-              });
-              setIsRenaming(false);
+              if (commitRename(e.currentTarget.value)) setIsRenaming(false);
             } else if (e.key === "Escape") {
+              escapedRef.current = true;
               setIsRenaming(false);
             }
+          }}
+          onBlur={(e) => {
+            if (escapedRef.current) return;
+            // Clicking away with a blank field has nothing valid to commit —
+            // cancel instead of leaving an unfocused, empty input stranded.
+            commitRename(e.currentTarget.value);
+            setIsRenaming(false);
           }}
         />
       </li>
