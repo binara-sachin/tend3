@@ -88,16 +88,35 @@ export function DragProvider({ children }: { children: ReactNode }) {
     const nodeId = String(active.id);
     const overIdStr = String(over.id);
 
+    // Invalidates the column the dragged node is leaving, once the move has
+    // actually landed. `invalidateAfterMutation` (queries/hooks.ts) already
+    // invalidates the destination (`vars.parentId`) plus whatever's
+    // currently open — but a reparent's *source* column isn't necessarily
+    // either of those (e.g. a sidebar root project isn't "open" the way a
+    // column is), so without this the moved node keeps showing up in its
+    // old spot until something else happens to refetch it. Firing it as an
+    // onSuccess callback (rather than immediately) avoids invalidating
+    // before the server has actually applied the move.
+    const invalidateSourceColumn = {
+      onSuccess: () =>
+        queryClient.invalidateQueries({ queryKey: ["columns", toApiParentId(activeData.parentId)] }),
+    };
+
     const sidebarCommand = resolveSidebarDrop(overIdStr, nodeId, todayDateString(new Date()), {
       inboxId: INBOX_ID,
       inboxChildren: queryClient.getQueryData<ColumnRow[]>(["columns", INBOX_ID]) ?? [],
     });
     if (sidebarCommand) {
-      runCommand.mutate({
-        type: sidebarCommand.type,
-        payload: sidebarCommand.payload,
-        parentId: toApiParentId(activeData.parentId),
-      });
+      runCommand.mutate(
+        {
+          type: sidebarCommand.type,
+          payload: sidebarCommand.payload,
+          parentId: toApiParentId(activeData.parentId),
+        },
+        sidebarCommand.type === "MoveNode"
+          ? { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["columns", INBOX_ID] }) }
+          : undefined,
+      );
       return;
     }
 
@@ -106,11 +125,14 @@ export function DragProvider({ children }: { children: ReactNode }) {
       if (targetProjectId === nodeId) return; // can't drop a project into itself
       const targetChildren = queryClient.getQueryData<ColumnRow[]>(["columns", targetProjectId]) ?? [];
       const resolved = resolveWholeRowDrop(targetProjectId, targetChildren);
-      runCommand.mutate({
-        type: "MoveNode",
-        payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
-        parentId: toApiParentId(resolved.parentId),
-      });
+      runCommand.mutate(
+        {
+          type: "MoveNode",
+          payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
+          parentId: toApiParentId(resolved.parentId),
+        },
+        invalidateSourceColumn,
+      );
       return;
     }
 
@@ -150,11 +172,14 @@ export function DragProvider({ children }: { children: ReactNode }) {
     const resolved = resolveCrossColumnInsertion(overIdStr, overData.parentId, side, siblings);
     if (!resolved) return;
 
-    runCommand.mutate({
-      type: "MoveNode",
-      payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
-      parentId: toApiParentId(resolved.parentId),
-    });
+    runCommand.mutate(
+      {
+        type: "MoveNode",
+        payload: { nodeId, newParentId: resolved.newParentId, newSortKey: resolved.newSortKey },
+        parentId: toApiParentId(resolved.parentId),
+      },
+      invalidateSourceColumn,
+    );
   }
 
   return (

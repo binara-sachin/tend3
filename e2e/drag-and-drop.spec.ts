@@ -134,6 +134,34 @@ test("reordering root-level projects via pointer drag persists, with Inbox pinne
   expect((await sidebarProjectTitles(page))[0]).toBe("Inbox");
 });
 
+test("moving a root-level project into a sub-project removes it from the sidebar immediately, no reload needed", async ({
+  page,
+  request,
+}) => {
+  const root = await createProject(request, uniqueTitle("Root"));
+  const target = await createSubProject(request, root.id, uniqueTitle("Target"), "a0");
+  const movable = await createProject(request, uniqueTitle("MovableRootProject"));
+
+  await page.goto("/");
+  await page.getByRole("button", { name: movable.title, exact: true }).waitFor();
+  await page.getByText(root.title).click();
+  await expect(page.getByText(target.title)).toBeVisible();
+
+  const movableRow = page.getByRole("button", { name: movable.title, exact: true });
+  const targetDropZone = page.locator(`[data-droppable-id="project-drop-${target.id}"]`);
+  await dragRow(page, movableRow, targetDropZone);
+
+  // No reload — this is the actual regression: the source (sidebar root
+  // list) was never invalidated, only the destination and whatever
+  // happened to already be open.
+  await expect(page.getByRole("button", { name: movable.title, exact: true })).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: movable.title, exact: true })).toHaveCount(0);
+  await page.getByText(target.title).click();
+  await expect(page.getByText(movable.title)).toBeVisible();
+});
+
 test("reparenting onto a project row via pointer drag moves the todo into it", async ({
   page,
   request,
