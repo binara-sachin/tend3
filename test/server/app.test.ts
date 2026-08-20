@@ -296,7 +296,13 @@ describe("POST /api/commands", () => {
           type: "todo",
           title: "x",
           notes: "",
-          sortKey: "b",
+          // Must be a valid order key (CreateNode now rejects malformed
+          // ones) and, less obviously, must not collide with either key
+          // evenlySpacedKeys(2) will hand out ("a0"/"a1") once rebalanced —
+          // undoing the rebalance restores prior keys one at a time and
+          // transiently re-collides with whichever of those two is still
+          // held by the other sibling, rolling the whole undo back silently.
+          sortKey: "a5",
           whenDate: null,
           deadline: null,
         },
@@ -373,7 +379,13 @@ describe("POST /api/undo and /api/redo", () => {
           type: "todo",
           title: "new todo",
           notes: "",
-          sortKey: "b",
+          // Must be a valid order key (CreateNode now rejects malformed
+          // ones) and, less obviously, must not collide with either key
+          // evenlySpacedKeys(2) will hand out ("a0"/"a1") once rebalanced —
+          // undoing the rebalance restores prior keys one at a time and
+          // transiently re-collides with whichever of those two is still
+          // held by the other sibling, rolling the whole undo back silently.
+          sortKey: "a5",
           whenDate: null,
           deadline: null,
         },

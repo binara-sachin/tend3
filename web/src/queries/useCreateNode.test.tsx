@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import "../test/setup.js";
 import { mswServer } from "../test/mswServer.js";
 import { useUiStore } from "../store/uiStore.js";
@@ -112,6 +112,45 @@ describe("useSubmitNewNode", () => {
 
     const body = (await bodyPromise) as { payload: { title: string } };
     expect(body.payload.title).toBe("Buy milk");
+  });
+
+  it("reports the error and closes the pending input instead of getting stuck, when the last sibling's sortKey is corrupt", async () => {
+    useUiStore.getState().setCreatingParentId("p1");
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const queryClient = new QueryClient();
+    // A malformed sortKey (e.g. written directly rather than via
+    // firstSortKey/sortKeyAfter) makes fractional-indexing throw when asked
+    // for a key after it.
+    queryClient.setQueryData(["columns", "p1"], [{ id: "a", sortKey: "z1787202573623" }]);
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const { result } = renderWithClient(() => useSubmitNewNode(), queryClient);
+
+    act(() => result.current("p1", "Buy milk"));
+
+    expect(called).toBe(false);
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(useUiStore.getState().creatingParentId).toBeNull();
+    alertSpy.mockRestore();
+  });
+
+  it("reports the error when the server rejects the command", async () => {
+    mswServer.use(
+      http.post("/api/commands", () => HttpResponse.json({ error: "sortKey collision" }, { status: 400 })),
+    );
+    const queryClient = new QueryClient();
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const { result } = renderWithClient(() => useSubmitNewNode(), queryClient);
+
+    act(() => result.current("p1", "Buy milk"));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Couldn\'t create "Buy milk": sortKey collision'));
+    alertSpy.mockRestore();
   });
 
   it("does nothing for a blank title, leaving the pending input open", async () => {

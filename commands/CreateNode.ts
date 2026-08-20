@@ -1,3 +1,4 @@
+import { isValidSortKey } from "../lib/sortKey.js";
 import type { NodeType } from "../repo/types.js";
 import type { Command, CommandContext } from "./Command.js";
 import { HardDeleteNode } from "./HardDeleteNode.js";
@@ -47,6 +48,13 @@ export class CreateNode implements Command {
 
     if (this.input.title.trim() === "") {
       throw new Error("CreateNode: title must not be blank");
+    }
+
+    // A malformed sortKey would permanently break fractional-indexing for
+    // every future sibling inserted after it, however it got in — reject it
+    // here so no caller (UI or otherwise) can write one.
+    if (!isValidSortKey(this.input.sortKey)) {
+      throw new Error(`CreateNode: sortKey '${this.input.sortKey}' is not a valid order key`);
     }
 
     const now = ctx.now();

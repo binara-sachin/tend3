@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { evenlySpacedKeys, firstSortKey, sortKeyAfter, sortKeyBetween } from "../../lib/sortKey.js";
+import {
+  evenlySpacedKeys,
+  firstSortKey,
+  isValidSortKey,
+  sortKeyAfter,
+  sortKeyBetween,
+} from "../../lib/sortKey.js";
 
 describe("firstSortKey", () => {
   it("returns a non-empty string", () => {
@@ -34,6 +40,17 @@ describe("sortKeyBetween", () => {
 
     expect(middle > a).toBe(true);
     expect(middle < b).toBe(true);
+  });
+});
+
+describe("isValidSortKey", () => {
+  it("accepts keys produced by firstSortKey/sortKeyAfter", () => {
+    expect(isValidSortKey(firstSortKey())).toBe(true);
+    expect(isValidSortKey(sortKeyAfter(firstSortKey()))).toBe(true);
+  });
+
+  it("rejects a malformed key such as a raw epoch-timestamp string", () => {
+    expect(isValidSortKey("z1787202573623")).toBe(false);
   });
 });
 

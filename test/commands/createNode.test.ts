@@ -155,6 +155,24 @@ describe("CreateNode.apply", () => {
     expect(() => command.apply(ctx)).toThrow(/title/i);
   });
 
+  it("rejects a malformed sortKey", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+
+    const command = new CreateNode({
+      id: generateId(),
+      parentId: root.id,
+      type: "todo",
+      title: "Buy milk",
+      notes: "",
+      sortKey: "z1787202573623",
+      whenDate: null,
+      deadline: null,
+    });
+
+    expect(() => command.apply(ctx)).toThrow(/sortKey/i);
+  });
+
   it("rejects creating under a missing parent", () => {
     const command = new CreateNode({
       id: generateId(),

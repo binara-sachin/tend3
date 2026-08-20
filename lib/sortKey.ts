@@ -15,6 +15,16 @@ export function sortKeyBetween(
   return generateKeyBetween(prevKey, nextKey);
 }
 
+/** True iff `key` is a well-formed fractional-indexing order key. */
+export function isValidSortKey(key: string): boolean {
+  try {
+    generateKeyBetween(key, null);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** N evenly-spaced keys, ascending — used by Rebalance to renumber a parent's children. */
 export function evenlySpacedKeys(count: number): string[] {
   return generateNKeysBetween(null, null, count);

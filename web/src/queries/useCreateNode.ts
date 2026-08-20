@@ -43,19 +43,39 @@ export function useSubmitNewNode() {
     const type: "project" | "todo" = apiParentId === null ? "project" : (creatingType ?? "todo");
     const siblings = queryClient.getQueryData<ColumnRow[]>(["columns", apiParentId]) ?? [];
     const lastSortKey = siblings.at(-1)?.sortKey ?? null;
-    runCommand.mutate({
-      type: "CreateNode",
-      payload: {
+
+    let sortKey: string;
+    try {
+      sortKey = lastSortKey ? sortKeyAfter(lastSortKey) : firstSortKey();
+    } catch (err) {
+      // A corrupt last-sibling sortKey would otherwise throw here, before
+      // the input is ever dismissed — leaving it permanently stuck open.
+      setCreatingParentId(null);
+      window.alert(`Couldn't create "${trimmed}": ${(err as Error).message}`);
+      return;
+    }
+
+    runCommand.mutate(
+      {
+        type: "CreateNode",
+        payload: {
+          parentId: apiParentId,
+          type,
+          title: trimmed,
+          notes: "",
+          sortKey,
+          whenDate: null,
+          deadline: null,
+        },
         parentId: apiParentId,
-        type,
-        title: trimmed,
-        notes: "",
-        sortKey: lastSortKey ? sortKeyAfter(lastSortKey) : firstSortKey(),
-        whenDate: null,
-        deadline: null,
       },
-      parentId: apiParentId,
-    });
+      {
+        // A command the server rejects (e.g. a sortKey collision) would
+        // otherwise fail with no trace anywhere in the UI — it just looks
+        // like nothing happened, and the input has already closed by now.
+        onError: (err) => window.alert(`Couldn't create "${trimmed}": ${(err as Error).message}`),
+      },
+    );
     setCreatingParentId(null);
   };
 }
