@@ -311,6 +311,49 @@ describe("Column", () => {
     expect(called).toBe(false);
   });
 
+  it("shows a checkbox icon next to the new-item input, matching what a real todo row would show", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: /new item/i }));
+
+    const input = await screen.findByRole("textbox");
+    const icon = input.parentElement?.querySelector(".row-icon svg");
+    expect(icon?.querySelector("rect")).not.toBeNull(); // CircleIcon's rounded square
+    expect(icon?.querySelector("path")).toBeNull();
+  });
+
+  it("shows a folder icon next to the new-sub-project input, matching what a real project row would show", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    mswServer.use(
+      http.get("/api/nodes/p1", () =>
+        HttpResponse.json({
+          id: "p1",
+          type: "project",
+          title: "Groceries",
+          notes: "",
+          whenDate: null,
+          deadline: null,
+          completedAt: null,
+          path: [],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: "New sub-project" }));
+
+    const input = await screen.findByRole("textbox");
+    const icon = input.parentElement?.querySelector(".row-icon svg");
+    // FolderIcon renders a single distinctive path and no rect/circle.
+    expect(icon?.querySelector("path")).not.toBeNull();
+    expect(icon?.querySelectorAll("rect, circle")).toHaveLength(0);
+  });
+
   it("submitting the + button's title input creates a new node with that title", async () => {
     stubColumn("p1", [TODO_ROW]);
     let capturedBody: unknown;

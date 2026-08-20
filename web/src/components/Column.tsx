@@ -202,21 +202,33 @@ function Row({
 function NewItemRow({ parentKey }: { parentKey: string }) {
   const submitNewNode = useSubmitNewNode();
   const setCreatingParentId = useUiStore((s) => s.setCreatingParentId);
+  const creatingType = useUiStore((s) => s.creatingType);
+  // Root children are always projects (invariant 3); everywhere else this
+  // mirrors useSubmitNewNode's own default-inference, so the icon shown here
+  // always matches what actually gets created.
+  const type = parentKey === "root" ? "project" : (creatingType ?? "todo");
 
   return (
     <li>
-      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-      <input
-        autoFocus
-        className="row-rename-input"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            submitNewNode(parentKey, e.currentTarget.value);
-          } else if (e.key === "Escape") {
-            setCreatingParentId(null);
-          }
-        }}
-      />
+      <div className="row">
+        <div className="row-main">
+          <span className="row-icon">
+            {type === "project" ? <FolderIcon size={15} /> : <CircleIcon size={16} />}
+          </span>
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+          <input
+            autoFocus
+            className="row-rename-input"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                submitNewNode(parentKey, e.currentTarget.value);
+              } else if (e.key === "Escape") {
+                setCreatingParentId(null);
+              }
+            }}
+          />
+        </div>
+      </div>
     </li>
   );
 }
