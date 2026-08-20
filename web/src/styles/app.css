@@ -120,6 +120,7 @@ textarea {
 }
 
 .sidebar-item--add {
+  margin-top: 6px;
   border: 1px dashed color-mix(in srgb, var(--color-accent) 45%, transparent);
 }
 
