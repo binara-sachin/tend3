@@ -346,6 +346,14 @@ textarea {
   color: color-mix(in srgb, var(--color-text) 35%, transparent);
 }
 
+.row-checkbox {
+  cursor: pointer;
+}
+
+.row-checkbox:hover {
+  color: var(--color-accent-300);
+}
+
 .row-main--selected .row-icon {
   color: var(--color-accent-300);
 }

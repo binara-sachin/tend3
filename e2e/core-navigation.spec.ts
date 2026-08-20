@@ -25,6 +25,34 @@ test("shows a project's todos, and inline rename persists", async ({ page, reque
   await expect(page.getByText(todoTitle)).toHaveCount(0);
 });
 
+test("clicking a todo's checkbox marks it complete without opening the detail pane or dragging it", async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(request, uniqueTitle("Project"));
+  const todoTitle = uniqueTitle("Todo");
+  await createTodo(request, project.id, { title: todoTitle, sortKey: "a0" });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  const row = page.getByRole("button", { name: todoTitle, exact: true });
+  await row.locator(".row-checkbox").click();
+
+  // Hidden once complete (Show completed defaults off) — also proves it
+  // didn't just open the detail pane instead of toggling completion.
+  await expect(row).toHaveCount(0);
+  await expect(page.locator(".detail-pane")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Show completed" }).click();
+  await expect(row).toBeVisible();
+
+  // "Show completed" persists across reload (uiStore), so it's still on —
+  // no need to click it again.
+  await page.reload();
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  await expect(page.getByRole("button", { name: todoTitle, exact: true })).toBeVisible();
+});
+
 test("double-clicking the detail pane's title renames the todo, and it persists across a reload", async ({
   page,
   request,

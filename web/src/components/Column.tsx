@@ -34,6 +34,7 @@ interface RowProps {
   onSubmitRename(title: string): void;
   onCancelRename(): void;
   onSelect(): void;
+  onToggleComplete(): void;
 }
 
 function Row({
@@ -46,6 +47,7 @@ function Row({
   onSubmitRename,
   onCancelRename,
   onSelect,
+  onToggleComplete,
 }: RowProps) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver } =
     useSortable({
@@ -75,26 +77,40 @@ function Row({
   const icon =
     row.type === "heading" ? (
       <span className="row-icon">{isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}</span>
-    ) : (
+    ) : row.type === "project" ? (
       <span className="row-icon">
-        {row.type === "project" ? (
-          row.totalDescendantCount === 0 ? (
-            // Nothing to show progress of yet — Things3 shows a plain
-            // folder for an empty project too.
-            <FolderIcon size={15} />
-          ) : row.isComplete ? (
-            <CheckCircleIcon size={16} />
-          ) : (
-            <ProjectProgressIcon
-              size={15}
-              fraction={(row.totalDescendantCount - row.openDescendantCount) / row.totalDescendantCount}
-            />
-          )
-        ) : row.completedAt !== null ? (
+        {row.totalDescendantCount === 0 ? (
+          // Nothing to show progress of yet — Things3 shows a plain
+          // folder for an empty project too.
+          <FolderIcon size={15} />
+        ) : row.isComplete ? (
           <CheckCircleIcon size={16} />
         ) : (
-          <CircleIcon size={16} />
+          <ProjectProgressIcon
+            size={15}
+            fraction={(row.totalDescendantCount - row.openDescendantCount) / row.totalDescendantCount}
+          />
         )}
+      </span>
+    ) : (
+      // Not given its own ARIA role/label: a descendant's aria-label gets
+      // folded into the enclosing row-main button's accessible name (used
+      // everywhere rows are looked up by title in tests and elsewhere), so
+      // anything beyond aria-hidden here would silently rename every row.
+      <span
+        className="row-icon row-checkbox"
+        // Stops the click from also bubbling to row-main's onSelect (which
+        // would open/select the todo) and stops the pointerdown from ever
+        // reaching dnd-kit's drag listeners on row-main — otherwise even a
+        // tiny amount of pointer movement while clicking the checkbox could
+        // register as a drag instead of a tap.
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleComplete();
+        }}
+      >
+        {row.completedAt !== null ? <CheckCircleIcon size={16} /> : <CircleIcon size={16} />}
       </span>
     );
 
@@ -286,6 +302,14 @@ function ColumnBody({ parentId, depth, nested = false }: ColumnBodyProps) {
     setRenamingId(null);
   }
 
+  function toggleCompleted(row: ColumnRow) {
+    runCommand.mutate({
+      type: "SetCompleted",
+      payload: { nodeId: row.id, completed: row.completedAt === null },
+      parentId: parentKey,
+    });
+  }
+
   return (
     <SortableContext items={visibleRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
       <ul className="list-reset">
@@ -308,6 +332,7 @@ function ColumnBody({ parentId, depth, nested = false }: ColumnBodyProps) {
                   select(depth, { id: row.id, type: row.type });
                 }
               }}
+              onToggleComplete={() => toggleCompleted(row)}
             />
             {row.type === "heading" && expandedHeadings[row.id] && (
               <ColumnBody parentId={row.id} depth={depth} nested />

@@ -72,6 +72,59 @@ describe("Column", () => {
     expect(useUiStore.getState().openPath).toEqual([{ id: "proj-1", type: "project" }]);
   });
 
+  it("clicking a todo's checkbox marks it complete, without selecting/opening it", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "todo-1" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    const row = await screen.findByRole("button", { name: "Buy milk" });
+    const checkbox = row.querySelector(".row-checkbox") as HTMLElement;
+    await user.click(checkbox);
+
+    await waitFor(() =>
+      expect(capturedBody).toEqual({
+        type: "SetCompleted",
+        payload: { nodeId: "todo-1", completed: true },
+      }),
+    );
+    // A plain row click would append to openPath — clicking the checkbox
+    // must not also do that.
+    expect(useUiStore.getState().openPath).toEqual([]);
+  });
+
+  it("clicking an already-complete todo's checkbox marks it incomplete again", async () => {
+    stubColumn("p1", [{ ...TODO_ROW, completedAt: "2024-01-01" }]);
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "todo-1" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    // Completed todos are hidden by default.
+    await user.click(await screen.findByRole("button", { name: /show completed/i }));
+    const row = await screen.findByRole("button", { name: "Buy milk" });
+    const checkbox = row.querySelector(".row-checkbox") as HTMLElement;
+    await user.click(checkbox);
+
+    await waitFor(() =>
+      expect(capturedBody).toEqual({
+        type: "SetCompleted",
+        payload: { nodeId: "todo-1", completed: false },
+      }),
+    );
+  });
+
   it("double-clicking a row enters inline rename, and Enter submits RenameNode", async () => {
     stubColumn("p1", [TODO_ROW]);
     let capturedBody: unknown;
