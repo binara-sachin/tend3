@@ -17,6 +17,7 @@ import {
   FolderIcon,
   FolderPlusIcon,
   PlusIcon,
+  ProjectProgressIcon,
 } from "../icons.js";
 
 function columnKey(parentId: string | null): string {
@@ -77,7 +78,18 @@ function Row({
     ) : (
       <span className="row-icon">
         {row.type === "project" ? (
-          <FolderIcon size={15} />
+          row.totalDescendantCount === 0 ? (
+            // Nothing to show progress of yet — Things3 shows a plain
+            // folder for an empty project too.
+            <FolderIcon size={15} />
+          ) : row.isComplete ? (
+            <CheckCircleIcon size={16} />
+          ) : (
+            <ProjectProgressIcon
+              size={15}
+              fraction={(row.totalDescendantCount - row.openDescendantCount) / row.totalDescendantCount}
+            />
+          )
         ) : row.completedAt !== null ? (
           <CheckCircleIcon size={16} />
         ) : (

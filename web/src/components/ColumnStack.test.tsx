@@ -26,6 +26,7 @@ function row(overrides: Partial<Record<string, unknown>>) {
     completedAt: null,
     isComplete: false,
     openDescendantCount: 0,
+    totalDescendantCount: 0,
     ...overrides,
   };
 }

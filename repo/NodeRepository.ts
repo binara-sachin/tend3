@@ -47,6 +47,13 @@ export interface NodeRepository {
    * rootId and it), incomplete todo descendants of rootId, excluding rootId.
    */
   countLiveOpenTodosInSubtree(rootId: string): number;
+  /**
+   * Count of live todo descendants of rootId, any completion state,
+   * excluding rootId — same scope as countLiveOpenTodosInSubtree, minus the
+   * completion filter. Computed on read (not incrementally maintained like
+   * open_descendant_count) purely for the project progress indicator.
+   */
+  countLiveDescendantTodosInSubtree(rootId: string): number;
   /** Recomputes open_descendant_count from scratch for every project node. */
   recomputeOpenDescendantCounts(): Map<string, number>;
   /** Non-project rows with a nonzero open_descendant_count — always a bug, since only projects use it. */

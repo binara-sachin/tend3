@@ -12,6 +12,8 @@ export interface ColumnRow {
   completedAt: string | null;
   isComplete: boolean | null;
   openDescendantCount: number;
+  /** Live todo descendants of this node, any completion state — 0 for non-project rows. Powers the project progress indicator; not incrementally maintained like openDescendantCount. */
+  totalDescendantCount: number;
   hasNotes: boolean;
 }
 
@@ -28,6 +30,7 @@ export function toColumnRow(repo: NodeRepository, n: NodeRow): ColumnRow {
     isComplete:
       n.type === "project" ? n.openDescendantCount === 0 && repo.hasLiveDescendant(n.id) : null,
     openDescendantCount: n.openDescendantCount,
+    totalDescendantCount: n.type === "project" ? repo.countLiveDescendantTodosInSubtree(n.id) : 0,
     hasNotes: n.notes.trim().length > 0,
   };
 }

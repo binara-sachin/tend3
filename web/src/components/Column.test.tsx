@@ -29,6 +29,7 @@ const PROJECT_ROW = {
   completedAt: null,
   isComplete: false,
   openDescendantCount: 0,
+  totalDescendantCount: 0,
 };
 
 const TODO_ROW = {
@@ -236,6 +237,50 @@ describe("Column", () => {
 
     await user.keyboard("{ArrowUp}");
     expect(screen.getByText("Groceries")).toHaveFocus();
+  });
+
+  it("shows a plain folder icon for a project with no live todo descendants", async () => {
+    stubColumn("p1", [PROJECT_ROW]); // totalDescendantCount: 0
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Groceries");
+
+    const icon = document.querySelector(".row-icon svg");
+    expect(icon?.querySelector("path")).not.toBeNull();
+    expect(icon?.querySelector("circle")).toBeNull();
+  });
+
+  it("shows a progress ring for a project with some open and some completed descendants", async () => {
+    stubColumn("p1", [{ ...PROJECT_ROW, totalDescendantCount: 4, openDescendantCount: 1 }]);
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Groceries");
+
+    const icon = document.querySelector(".row-icon svg");
+    const circles = icon?.querySelectorAll("circle");
+    expect(circles).toHaveLength(2); // track + progress arc
+    // 3 of 4 complete — the arc's dashoffset should reflect a non-zero,
+    // non-full fraction (not 0 = fully filled, not the full circumference =
+    // empty).
+    const progressCircle = circles?.[1] as SVGCircleElement;
+    const circumference = 2 * Math.PI * 7;
+    const dashoffset = Number(progressCircle.getAttribute("stroke-dashoffset"));
+    expect(dashoffset).toBeGreaterThan(0);
+    expect(dashoffset).toBeLessThan(circumference);
+  });
+
+  it("shows the same complete checkmark icon a todo gets, for a fully-complete project", async () => {
+    stubColumn("p1", [
+      { ...PROJECT_ROW, totalDescendantCount: 2, openDescendantCount: 0, isComplete: true },
+    ]);
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Groceries");
+
+    const icon = document.querySelector(".row-icon svg");
+    expect(icon?.querySelector("rect")).not.toBeNull(); // the rounded-square "complete" fill
+    expect(icon?.querySelector("path")).not.toBeNull(); // the checkmark
+    expect(icon?.querySelectorAll("circle")).toHaveLength(0);
   });
 
   it("registers a project row as a whole-row drop target, distinct from its sortable id", async () => {

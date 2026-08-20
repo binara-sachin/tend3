@@ -88,6 +88,35 @@ export function FolderIcon(props: IconProps) {
   );
 }
 
+interface ProjectProgressIconProps {
+  /** Completed / total, 0..1 — clamped defensively since it's derived from two separately-fetched counts. */
+  fraction: number;
+  size?: number;
+}
+
+/** Things3-style circular progress ring for a project with at least one live todo descendant, filling clockwise from the top as more of them complete. */
+export function ProjectProgressIcon({ fraction, size = 15 }: ProjectProgressIconProps) {
+  const clamped = Math.min(1, Math.max(0, fraction));
+  const radius = 7;
+  const circumference = 2 * Math.PI * radius;
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden focusable={false}>
+      <circle cx="9" cy="9" r={radius} stroke="currentColor" strokeOpacity="0.3" strokeWidth="2" />
+      <circle
+        cx="9"
+        cy="9"
+        r={radius}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - clamped)}
+        transform="rotate(-90 9 9)"
+      />
+    </svg>
+  );
+}
+
 export function ChevronDownIcon(props: IconProps) {
   return (
     <svg {...base({ size: 9, ...props })} viewBox="0 0 16 16">

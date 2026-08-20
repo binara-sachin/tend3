@@ -54,6 +54,34 @@ describe("getColumn", () => {
     expect(row).toMatchObject({ id: sub.id, isComplete: true });
   });
 
+  it("reports totalDescendantCount as all live todos in a project's subtree, open or completed", () => {
+    // openDescendantCount is only ever correct when maintained by the command
+    // layer (CreateNode etc.) — raw repo.insert() always leaves it at 0, same
+    // as every other raw-insert test in this file. totalDescendantCount is
+    // unaffected either way: it's a fresh COUNT query, not an incremental
+    // counter, so it reflects the actual rows regardless of how they got there.
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+    const openTodo = newNodeInput({ type: "todo", parentId: root.id, sortKey: "a" });
+    repo.insert(openTodo);
+    const completedTodo = newNodeInput({ type: "todo", parentId: root.id, sortKey: "b" });
+    repo.insert(completedTodo);
+    repo.updateCompletedAt(completedTodo.id, "2024-02-01T00:00:00.000Z", "2024-02-01T00:00:00.000Z");
+    const sub = newNodeInput({ type: "project", parentId: root.id, sortKey: "c" });
+    repo.insert(sub);
+    const subTodo = newNodeInput({ type: "todo", parentId: sub.id, sortKey: "a" });
+    repo.insert(subTodo);
+
+    const rootRow = getColumn(repo, null).find((r) => r.id === root.id);
+    expect(rootRow).toMatchObject({ totalDescendantCount: 3 });
+
+    const subRow = getColumn(repo, root.id).find((r) => r.id === sub.id);
+    expect(subRow).toMatchObject({ totalDescendantCount: 1 });
+
+    const todoRow = getColumn(repo, root.id).find((r) => r.id === openTodo.id);
+    expect(todoRow).toMatchObject({ totalDescendantCount: 0 });
+  });
+
   it("returns root-level projects, including the seeded Inbox, when parentId is null", () => {
     const root = newNodeInput({ type: "project" });
     repo.insert(root);

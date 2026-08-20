@@ -346,6 +346,45 @@ describe("countLiveOpenTodosInSubtree", () => {
   });
 });
 
+describe("countLiveDescendantTodosInSubtree", () => {
+  it("counts all live todos transitively, open or completed, skipping trashed branches", () => {
+    const root = newNodeInput({ type: "project" });
+    repo.insert(root);
+
+    const openTodo = newNodeInput({ type: "todo", parentId: root.id, sortKey: "a" });
+    const completedTodo = newNodeInput({
+      type: "todo",
+      parentId: root.id,
+      sortKey: "b",
+    });
+    repo.insert(openTodo);
+    repo.insert(completedTodo);
+    repo.updateCompletedAt(completedTodo.id, "2024-02-01T00:00:00.000Z", "2024-02-01T00:00:00.000Z");
+
+    const sub = newNodeInput({ type: "project", parentId: root.id, sortKey: "c" });
+    repo.insert(sub);
+    const subTodo = newNodeInput({ type: "todo", parentId: sub.id, sortKey: "a" });
+    repo.insert(subTodo);
+
+    const trashedHeading = newNodeInput({
+      type: "heading",
+      parentId: root.id,
+      sortKey: "d",
+    });
+    repo.insert(trashedHeading);
+    repo.updateDeletedAt(trashedHeading.id, "2024-02-01T00:00:00.000Z", "2024-02-01T00:00:00.000Z");
+    const hiddenTodo = newNodeInput({
+      type: "todo",
+      parentId: trashedHeading.id,
+      sortKey: "a",
+    });
+    repo.insert(hiddenTodo);
+
+    // openTodo + completedTodo + subTodo — hiddenTodo excluded (trashed ancestor).
+    expect(repo.countLiveDescendantTodosInSubtree(root.id)).toBe(3);
+  });
+});
+
 describe("recomputeOpenDescendantCounts", () => {
   it("computes each project's own live-subtree count, stopping at trashed nodes", () => {
     const root = newNodeInput({ type: "project" });

@@ -247,6 +247,23 @@ export class SqliteNodeRepository implements NodeRepository {
     return row.count;
   }
 
+  countLiveDescendantTodosInSubtree(rootId: string): number {
+    const row = this.db
+      .prepare(
+        `WITH RECURSIVE subtree(id, type) AS (
+          SELECT id, type FROM nodes
+          WHERE parent_id = ? AND deleted_at IS NULL
+          UNION ALL
+          SELECT n.id, n.type FROM nodes n
+          JOIN subtree s ON n.parent_id = s.id
+          WHERE n.deleted_at IS NULL
+        )
+        SELECT COUNT(*) AS count FROM subtree WHERE type = 'todo'`,
+      )
+      .get(rootId) as { count: number };
+    return row.count;
+  }
+
   recomputeOpenDescendantCounts(): Map<string, number> {
     const rows = this.db.prepare("SELECT * FROM nodes").all() as RawNodeRow[];
     const nodes = rows.map(toNodeRow);
