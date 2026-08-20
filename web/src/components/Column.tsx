@@ -207,6 +207,11 @@ function NewItemRow({ parentKey }: { parentKey: string }) {
   // mirrors useSubmitNewNode's own default-inference, so the icon shown here
   // always matches what actually gets created.
   const type = parentKey === "root" ? "project" : (creatingType ?? "todo");
+  // Escape cancels immediately, but unmounting the still-focused input right
+  // after can itself fire a native blur — this flag lets the blur handler
+  // tell "Escape already resolved this" apart from "the user clicked away."
+  // Same pattern as Column.tsx's Row and Sidebar.tsx's SidebarProjectRow.
+  const escapedRef = useRef(false);
 
   return (
     <li>
@@ -223,8 +228,21 @@ function NewItemRow({ parentKey }: { parentKey: string }) {
               if (e.key === "Enter") {
                 submitNewNode(parentKey, e.currentTarget.value);
               } else if (e.key === "Escape") {
+                escapedRef.current = true;
                 setCreatingParentId(null);
               }
+            }}
+            onBlur={(e) => {
+              if (escapedRef.current) return;
+              const trimmed = e.currentTarget.value.trim();
+              // Clicking away with a blank field has nothing valid to
+              // create — dismiss instead of leaving an unfocused, empty
+              // input stranded.
+              if (trimmed === "") {
+                setCreatingParentId(null);
+                return;
+              }
+              submitNewNode(parentKey, e.currentTarget.value);
             }}
           />
         </div>

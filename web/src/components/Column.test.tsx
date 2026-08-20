@@ -440,6 +440,54 @@ describe("Column", () => {
     expect(screen.getByRole("textbox")).toBeInTheDocument(); // input stays open
   });
 
+  it("clicking away from a blank new-item input dismisses it instead of creating anything", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: /new item/i }));
+    await screen.findByRole("textbox");
+    await user.click(screen.getByRole("button", { name: "Show completed" })); // click elsewhere
+
+    expect(called).toBe(false);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("clicking away from a new-item input with a title creates the node", async () => {
+    stubColumn("p1", [TODO_ROW]);
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ id: "new-1" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    await screen.findByText("Buy milk");
+    await user.click(screen.getByRole("button", { name: /new item/i }));
+    const input = await screen.findByRole("textbox");
+    await user.type(input, "Buy bread");
+    await user.click(screen.getByRole("button", { name: "Show completed" }));
+
+    await waitFor(() =>
+      expect(capturedBody).toMatchObject({
+        type: "CreateNode",
+        payload: { parentId: "p1", type: "todo", title: "Buy bread" },
+      }),
+    );
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
   it("Escape cancels the + button's pending input without creating anything", async () => {
     stubColumn("p1", [TODO_ROW]);
     let called = false;

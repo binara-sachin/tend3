@@ -76,9 +76,7 @@ export function Sidebar() {
   const activeSmartList = useUiStore((s) => s.activeSmartList);
   const openRootId = useUiStore((s) => s.openPath[0]?.id);
   const creatingParentId = useUiStore((s) => s.creatingParentId);
-  const setCreatingParentId = useUiStore((s) => s.setCreatingParentId);
   const createNode = useCreateNode();
-  const submitNewNode = useSubmitNewNode();
 
   // The sidebar renders depth 0 of the tree (spec 1) but is never a
   // Column, so nothing else ever gives Cmd+N a root-level target — this is
@@ -116,22 +114,7 @@ export function Sidebar() {
             />
           ))}
         </SortableContext>
-        {creatingParentId === "root" && (
-          <li>
-            {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-            <input
-              autoFocus
-              className="sidebar-rename-input"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  submitNewNode("root", e.currentTarget.value);
-                } else if (e.key === "Escape") {
-                  setCreatingParentId(null);
-                }
-              }}
-            />
-          </li>
-        )}
+        {creatingParentId === "root" && <NewRootProjectRow />}
         <li>
           <button type="button" className="sidebar-item sidebar-item--add" onClick={() => createNode("root")}>
             <span className="sidebar-item-icon">
@@ -142,6 +125,45 @@ export function Sidebar() {
         </li>
       </ul>
     </nav>
+  );
+}
+
+function NewRootProjectRow() {
+  const submitNewNode = useSubmitNewNode();
+  const setCreatingParentId = useUiStore((s) => s.setCreatingParentId);
+  // Escape cancels immediately, but unmounting the still-focused input right
+  // after can itself fire a native blur — this flag lets the blur handler
+  // tell "Escape already resolved this" apart from "the user clicked away."
+  // Same pattern as SidebarProjectRow and Column.tsx's Row/NewItemRow.
+  const escapedRef = useRef(false);
+
+  return (
+    <li>
+      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+      <input
+        autoFocus
+        className="sidebar-rename-input"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            submitNewNode("root", e.currentTarget.value);
+          } else if (e.key === "Escape") {
+            escapedRef.current = true;
+            setCreatingParentId(null);
+          }
+        }}
+        onBlur={(e) => {
+          if (escapedRef.current) return;
+          const trimmed = e.currentTarget.value.trim();
+          // Clicking away with a blank field has nothing valid to create —
+          // dismiss instead of leaving an unfocused, empty input stranded.
+          if (trimmed === "") {
+            setCreatingParentId(null);
+            return;
+          }
+          submitNewNode("root", e.currentTarget.value);
+        }}
+      />
+    </li>
   );
 }
 
