@@ -182,7 +182,10 @@ test("reordering root-level projects via pointer drag persists, with Inbox pinne
 
   const rowFirst = page.getByRole("button", { name: firstTitle, exact: true });
   const rowSecond = page.getByRole("button", { name: secondTitle, exact: true });
-  await dragRow(page, rowSecond, rowFirst); // move above "first"
+  // Both rows are appended at the end of the root project list, which grows
+  // by one entry per earlier test in this same suite run — scrollable-aware
+  // like the cross-project sidebar drag test, to avoid the same flakiness.
+  await dragOntoScrollableTarget(page, rowSecond, rowFirst); // move above "first"
 
   // The drop fires a MoveNode command and refetches the sidebar's root
   // column — poll instead of a fixed wait for that round-trip.

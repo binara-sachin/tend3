@@ -25,6 +25,35 @@ test("shows a project's todos, and inline rename persists", async ({ page, reque
   await expect(page.getByText(todoTitle)).toHaveCount(0);
 });
 
+test("double-clicking the detail pane's title renames the todo, and it persists across a reload", async ({
+  page,
+  request,
+}) => {
+  const project = await createProject(request, uniqueTitle("Project"));
+  const todoTitle = uniqueTitle("Todo");
+  await createTodo(request, project.id, { title: todoTitle, sortKey: "a0" });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  await page.getByText(todoTitle).click(); // select + open the detail pane
+  await page.locator(".detail-title").dblclick();
+
+  const renameInput = page.locator(".detail-title-input");
+  await renameInput.fill("Renamed from detail pane");
+  await renameInput.press("Enter");
+
+  await expect(
+    page.getByRole("button", { name: "Renamed from detail pane", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".detail-title")).toHaveText("Renamed from detail pane");
+
+  await page.reload();
+  await page.getByRole("button", { name: project.title, exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Renamed from detail pane", exact: true }),
+  ).toBeVisible();
+});
+
 test("clicking outside the rename input commits it, and Escape cancels without also submitting", async ({
   page,
   request,

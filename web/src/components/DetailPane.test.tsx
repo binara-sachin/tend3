@@ -129,6 +129,56 @@ describe("DetailPane", () => {
     expect(screen.getByLabelText(/deadline/i)).toHaveValue("2024-10-01");
   });
 
+  it("double-clicking the title enters inline rename, and Enter submits RenameNode", async () => {
+    mswServer.use(http.get("/api/nodes/todo-1", () => HttpResponse.json(NODE)));
+    let capturedBody: unknown;
+    mswServer.use(
+      http.post("/api/commands", async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ ...NODE, title: "Buy oat milk" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<DetailPane nodeId="todo-1" parentId="p1" />);
+    const title = await screen.findByText("Buy milk");
+    await user.dblClick(title);
+
+    const input = await screen.findByDisplayValue("Buy milk");
+    await user.clear(input);
+    await user.type(input, "Buy oat milk");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(capturedBody).toEqual({
+        type: "RenameNode",
+        payload: { nodeId: "todo-1", title: "Buy oat milk" },
+      }),
+    );
+  });
+
+  it("blurring the title input commits the rename, and Escape cancels without submitting", async () => {
+    mswServer.use(http.get("/api/nodes/todo-1", () => HttpResponse.json(NODE)));
+    let called = false;
+    mswServer.use(
+      http.post("/api/commands", () => {
+        called = true;
+        return HttpResponse.json(NODE);
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<DetailPane nodeId="todo-1" parentId="p1" />);
+    const title = await screen.findByText("Buy milk");
+    await user.dblClick(title);
+    const input = await screen.findByDisplayValue("Buy milk");
+    await user.type(input, " 2%"); // -> "Buy milk 2%"
+    await user.keyboard("{Escape}");
+
+    expect(called).toBe(false);
+    expect(screen.getByText("Buy milk")).toBeInTheDocument();
+  });
+
   it("hides itself once its node is gone for good (e.g. purged) instead of showing stale content", async () => {
     mswServer.use(http.get("/api/nodes/todo-1", () => HttpResponse.json(NODE)));
 
