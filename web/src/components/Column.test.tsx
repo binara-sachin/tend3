@@ -101,6 +101,23 @@ describe("Column", () => {
     );
   });
 
+  it("keeps the row's icon visible next to the input while renaming, instead of replacing the whole row", async () => {
+    stubColumn("p1", [PROJECT_ROW, TODO_ROW]);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Column parentId="p1" depth={0} />);
+    const projectRow = await screen.findByText("Groceries");
+    await user.dblClick(projectRow);
+    const projectInput = await screen.findByRole("textbox");
+    expect(projectInput.parentElement?.querySelector(".row-icon")).not.toBeNull();
+    await user.keyboard("{Escape}");
+
+    const todoRow = await screen.findByText("Buy milk");
+    await user.dblClick(todoRow);
+    const todoInput = await screen.findByRole("textbox");
+    expect(todoInput.parentElement?.querySelector(".row-icon")).not.toBeNull();
+  });
+
   it("submitting a blank title while renaming does not submit RenameNode, and leaves the input open", async () => {
     stubColumn("p1", [TODO_ROW]);
     let called = false;

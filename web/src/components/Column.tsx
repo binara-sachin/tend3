@@ -67,41 +67,24 @@ function Row({
 
   if (isRenaming) {
     escapedRef.current = false;
-    return (
-      // eslint-disable-next-line jsx-a11y/no-autofocus
-      <input
-        autoFocus
-        className="row-rename-input"
-        defaultValue={row.title}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            const title = e.currentTarget.value.trim();
-            // A blank title is rejected server-side too, but checking here
-            // avoids the round-trip and keeps the input open to try again
-            // instead of silently discarding the edit.
-            if (title === "") return;
-            onSubmitRename(title);
-          } else if (e.key === "Escape") {
-            escapedRef.current = true;
-            onCancelRename();
-          }
-        }}
-        onBlur={(e) => {
-          if (escapedRef.current) return;
-          const title = e.currentTarget.value.trim();
-          // Clicking away with a blank field has nothing valid to commit —
-          // cancel instead of leaving an unfocused, empty input stranded.
-          if (title === "") {
-            onCancelRename();
-            return;
-          }
-          onSubmitRename(title);
-        }}
-      />
-    );
   }
 
   const badge = row.type === "todo" ? formatColumnDueBadge(row.whenDate, todayDateString(new Date())) : null;
+
+  const icon =
+    row.type === "heading" ? (
+      <span className="row-icon">{isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}</span>
+    ) : (
+      <span className="row-icon">
+        {row.type === "project" ? (
+          <FolderIcon size={15} />
+        ) : row.completedAt !== null ? (
+          <CheckCircleIcon size={16} />
+        ) : (
+          <CircleIcon size={16} />
+        )}
+      </span>
+    );
 
   return (
     <>
@@ -112,65 +95,91 @@ function Row({
         style={{ transform: CSS.Transform.toString(transform), transition }}
       >
       <div
-        ref={row.type === "project" ? setWholeRowDropRef : undefined}
-        {...attributes}
-        {...listeners}
-        role="button"
-        tabIndex={0}
-        data-row="true"
-        data-droppable-id={row.type === "project" ? `project-drop-${row.id}` : undefined}
+        ref={row.type === "project" && !isRenaming ? setWholeRowDropRef : undefined}
+        {...(isRenaming ? undefined : attributes)}
+        {...(isRenaming ? undefined : listeners)}
+        role={isRenaming ? undefined : "button"}
+        tabIndex={isRenaming ? undefined : 0}
+        data-row={isRenaming ? undefined : "true"}
+        data-droppable-id={row.type === "project" && !isRenaming ? `project-drop-${row.id}` : undefined}
         className={`row-main${row.type === "heading" ? " row-main--heading" : ""}${isWholeRowOver ? " row-main--drop-target" : ""}`}
-        onClick={onSelect}
-        onDoubleClick={onStartRename}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-            e.preventDefault();
-            const list = e.currentTarget.closest("ul");
-            if (!list) return;
-            const items = Array.from(
-              list.querySelectorAll(":scope > li [data-row]"),
-            ) as HTMLElement[];
-            const index = items.indexOf(e.currentTarget);
-            const nextIndex = e.key === "ArrowDown" ? index + 1 : index - 1;
-            items[nextIndex]?.focus();
-            return;
-          }
-          if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-            e.preventDefault();
-            const column = e.currentTarget.closest("[data-depth]");
-            const targetColumn =
-              e.key === "ArrowRight" ? column?.nextElementSibling : column?.previousElementSibling;
-            const targetRow = targetColumn?.querySelector("[data-row]") as HTMLElement | null;
-            targetRow?.focus();
-          }
-        }}
+        onClick={isRenaming ? undefined : onSelect}
+        onDoubleClick={isRenaming ? undefined : onStartRename}
+        onKeyDown={
+          isRenaming
+            ? undefined
+            : (e) => {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const list = e.currentTarget.closest("ul");
+                  if (!list) return;
+                  const items = Array.from(
+                    list.querySelectorAll(":scope > li [data-row]"),
+                  ) as HTMLElement[];
+                  const index = items.indexOf(e.currentTarget);
+                  const nextIndex = e.key === "ArrowDown" ? index + 1 : index - 1;
+                  items[nextIndex]?.focus();
+                  return;
+                }
+                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                  e.preventDefault();
+                  const column = e.currentTarget.closest("[data-depth]");
+                  const targetColumn =
+                    e.key === "ArrowRight" ? column?.nextElementSibling : column?.previousElementSibling;
+                  const targetRow = targetColumn?.querySelector("[data-row]") as HTMLElement | null;
+                  targetRow?.focus();
+                }
+              }
+        }
       >
-        {row.type === "heading" ? (
-          <span className="row-icon">
-            {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-          </span>
+        {icon}
+        {isRenaming ? (
+          // eslint-disable-next-line jsx-a11y/no-autofocus
+          <input
+            autoFocus
+            className="row-rename-input"
+            defaultValue={row.title}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const title = e.currentTarget.value.trim();
+                // A blank title is rejected server-side too, but checking
+                // here avoids the round-trip and keeps the input open to
+                // try again instead of silently discarding the edit.
+                if (title === "") return;
+                onSubmitRename(title);
+              } else if (e.key === "Escape") {
+                escapedRef.current = true;
+                onCancelRename();
+              }
+            }}
+            onBlur={(e) => {
+              if (escapedRef.current) return;
+              const title = e.currentTarget.value.trim();
+              // Clicking away with a blank field has nothing valid to
+              // commit — cancel instead of leaving an unfocused, empty
+              // input stranded.
+              if (title === "") {
+                onCancelRename();
+                return;
+              }
+              onSubmitRename(title);
+            }}
+          />
         ) : (
-          <span className="row-icon">
-            {row.type === "project" ? (
-              <FolderIcon size={15} />
-            ) : row.completedAt !== null ? (
-              <CheckCircleIcon size={16} />
-            ) : (
-              <CircleIcon size={16} />
+          <>
+            {row.title}
+            {row.type === "todo" && row.hasNotes && (
+              <span className="row-notes-icon" title="Has notes">
+                <DocumentIcon />
+              </span>
             )}
-          </span>
-        )}
-        {row.title}
-        {row.type === "todo" && row.hasNotes && (
-          <span className="row-notes-icon" title="Has notes">
-            <DocumentIcon />
-          </span>
-        )}
-        {badge && <span className={`badge badge--${badge.tone}`}>{badge.text}</span>}
-        {row.type === "project" && (
-          <span className="row-icon row-icon--muted">
-            <ChevronRightIcon />
-          </span>
+            {badge && <span className={`badge badge--${badge.tone}`}>{badge.text}</span>}
+            {row.type === "project" && (
+              <span className="row-icon row-icon--muted">
+                <ChevronRightIcon />
+              </span>
+            )}
+          </>
         )}
       </div>
       </div>
